@@ -1,8 +1,13 @@
+import logging
 import discord
 from discord import app_commands
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import config
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class SpotifyModule:
@@ -37,6 +42,7 @@ class SpotifyModule:
                             color=discord.Color.red()
                         )
                     )
+                    logger.info("No song is currently playing")
                 else:
                     track = current["item"]
                     artist = ", ".join([a["name"] for a in track["artists"]])
@@ -51,8 +57,10 @@ class SpotifyModule:
                     )
                     embed.set_thumbnail(url=track['album']['images'][0]['url'])
                     await interaction.followup.send(embed=embed)
+                    logger.info(f"Currently playing: {track['name']} by {artist}")  # noqa: E501
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
+                logger.error(f"Error in current_track command: {e}")
 
         @app_commands.command(
             name="play_track", description="Play a track by searching for it"
@@ -69,6 +77,7 @@ class SpotifyModule:
                             color=discord.Color.red()
                         )
                     )
+                    logger.info(f"No results found for query: {query}")
                     return
 
                 track = results["tracks"]["items"][0]
@@ -84,6 +93,7 @@ class SpotifyModule:
                             color=discord.Color.red()
                         )
                     )
+                    logger.info("No active devices found for playback")
                     return
 
                 self.sp.start_playback(uris=[uri])
@@ -97,8 +107,10 @@ class SpotifyModule:
                 )
                 embed.set_thumbnail(url=track['album']['images'][0]['url'])
                 await interaction.followup.send(embed=embed)
+                logger.info(f"Now playing: {track['name']} by {', '.join([a['name'] for a in track['artists']])}")  # noqa: E501
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
+                logger.error(f"Error in play_track command: {e}")
 
         @app_commands.command(
             name="play_playlist",
@@ -123,6 +135,7 @@ class SpotifyModule:
                                 color=discord.Color.red()
                             )
                         )
+                        logger.info(f"No results found for query: {query}")
                         return
                     playlist = results["playlists"]["items"][0]
                     uri = playlist["uri"]
@@ -137,6 +150,7 @@ class SpotifyModule:
                             color=discord.Color.red()
                         )
                     )
+                    logger.info("No active devices found for playback")
                     return
 
                 self.sp.start_playback(context_uri=uri)
@@ -148,8 +162,10 @@ class SpotifyModule:
                 if not query.startswith("https://open.spotify.com/playlist/"):
                     embed.set_thumbnail(url=playlist['images'][0]['url'])
                 await interaction.followup.send(embed=embed)
+                logger.info(f"Now playing playlist: {playlist['name']} by {playlist['owner']['display_name']}")  # noqa: E501
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
+                logger.error(f"Error in play_playlist command: {e}")
 
         @app_commands.command(
             name="pause", description="Pause the currently playing track"
@@ -165,8 +181,10 @@ class SpotifyModule:
                         color=discord.Color.green()
                     )
                 )
+                logger.info("Playback paused")
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
+                logger.error(f"Error in pause command: {e}")
 
         @app_commands.command(
             name="resume", description="Resume the currently playing track"
@@ -182,8 +200,10 @@ class SpotifyModule:
                         color=discord.Color.green()
                     )
                 )
+                logger.info("Playback resumed")
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
+                logger.error(f"Error in resume command: {e}")
 
         @app_commands.command(
             name="next", description="Skip to the next track"
@@ -199,8 +219,10 @@ class SpotifyModule:
                         color=discord.Color.green()
                     )
                 )
+                logger.info("Skipped to the next track")
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
+                logger.error(f"Error in next_track command: {e}")
 
         @app_commands.command(
             name="previous", description="Go back to the previous track"
@@ -216,8 +238,10 @@ class SpotifyModule:
                         color=discord.Color.green()
                     )
                 )
+                logger.info("Returned to the previous track")
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
+                logger.error(f"Error in previous_track command: {e}")
 
         self.bot.tree.add_command(current_track)
         self.bot.tree.add_command(play_track)

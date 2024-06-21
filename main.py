@@ -8,16 +8,21 @@ class Selena(discord.Client):
         self.tree = discord.app_commands.CommandTree(self)
 
     async def setup_hook(self):
-        guild = discord.Object(id=config.DISCORD_GUILD_ID)
-        modules = ["modules.media.spotify_module"]
-        for module in modules:
-            await self.load_extension(module)
-        self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
+        await self.load_extensions()
+        await self.tree.sync()
 
     async def load_extension(self, name):
         module = __import__(name, fromlist=["setup"])
         await module.setup(self)
+
+    async def load_extensions(self):
+        extensions = [
+            "modules.admin.logger_module",
+            "modules.media.spotify_module",
+            # Add other modules here
+        ]
+        for extension in extensions:
+            await self.load_extension(extension)
 
     async def on_ready(self):
         print(f'Logged in as {self.user} (ID: {self.user.id})')
