@@ -13,3 +13,10 @@ PLEX_TOKEN = os.getenv("PLEX_TOKEN")
 TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
 TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET")
 TWITCH_CHANNEL = os.getenv("TWITCH_CHANNEL")
+
+# List of enabled modules
+ENABLED_MODULES = [
+    "modules.media.spotify_module",
+    "modules.user.birthday_module",
+    "modules.money.currency_module",
+]

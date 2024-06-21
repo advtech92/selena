@@ -1,9 +1,9 @@
-# Flake8: noqa
+# Flake8:noqa: E501
 import discord
 from discord import app_commands
 import sqlite3
 import logging
-from .birthday_db import initialize_db, get_connection
+from modules.data.db import initialize_db, get_connection
 
 logger = logging.getLogger(__name__)
 initialize_db()

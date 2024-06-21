@@ -1,15 +1,19 @@
+# Flake8:noqa: E501
 import discord
 from discord import app_commands
 import sqlite3
 import logging
 import random
-from .currency_db import initialize_db, get_connection
+from datetime import datetime, timedelta
+from modules.data.db import initialize_db, get_connection
 
 logger = logging.getLogger(__name__)
 initialize_db()
 
 
 class CurrencyModule:
+    COOLDOWN_PERIOD = timedelta(minutes=5)  # Set the cooldown period here
+
     def __init__(self, bot):
         self.bot = bot
         self.add_commands()
@@ -21,15 +25,34 @@ class CurrencyModule:
         async def earn_currency(interaction: discord.Interaction):
             await interaction.response.defer()
             try:
-                amount = random.choices([random.randint(1, 10), 100], [0.99, 0.01])[0]
                 conn = get_connection()
                 cursor = conn.cursor()
-                cursor.execute('INSERT OR IGNORE INTO currency (user_id, balance) VALUES (?, ?)',
-                               (str(interaction.user.id), 0))
-                cursor.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?',
-                               (amount, str(interaction.user.id)))
+                user_id = str(interaction.user.id)
+                
+                # Check cooldown
+                cursor.execute('SELECT last_earned FROM currency WHERE user_id = ?', (user_id,))
+                result = cursor.fetchone()
+                if result and result[0]:
+                    last_earned = datetime.fromisoformat(result[0])
+                    if datetime.now() - last_earned < CurrencyModule.COOLDOWN_PERIOD:
+                        await interaction.followup.send(
+                            embed=discord.Embed(
+                                title="Earn Currency",
+                                description="You are on cooldown. Please try again later.",
+                                color=discord.Color.red()
+                            )
+                        )
+                        conn.close()
+                        logger.info(f"User {user_id} attempted to earn currency but is on cooldown.")
+                        return
+
+                amount = random.choices([random.randint(1, 10), 100], [0.99, 0.01])[0]
+                cursor.execute('INSERT OR IGNORE INTO currency (user_id, balance, last_earned) VALUES (?, ?, ?)',
+                               (user_id, 0, datetime.now().isoformat()))
+                cursor.execute('UPDATE currency SET balance = balance + ?, last_earned = ? WHERE user_id = ?',
+                               (amount, datetime.now().isoformat(), user_id))
                 conn.commit()
-                cursor.execute('SELECT balance FROM currency WHERE user_id = ?', (str(interaction.user.id),))
+                cursor.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
                 new_balance = cursor.fetchone()[0]
                 conn.close()
                 await interaction.followup.send(
@@ -39,7 +62,7 @@ class CurrencyModule:
                         color=discord.Color.green()
                     )
                 )
-                logger.info(f"User {interaction.user.id} earned {amount} currency. New balance: {new_balance}")
+                logger.info(f"User {user_id} earned {amount} currency. New balance: {new_balance}")
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
                 logger.error(f"Error in earn_currency command: {e}")

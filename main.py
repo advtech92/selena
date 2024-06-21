@@ -1,5 +1,9 @@
 import discord
 import config
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 
 class Selena(discord.Client):
@@ -11,21 +15,25 @@ class Selena(discord.Client):
         guild = discord.Object(id=config.DISCORD_GUILD_ID)
         await self.load_extensions()
         self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
+        await self.tree.sync()
 
     async def load_extension(self, name):
         module = __import__(name, fromlist=["setup"])
         await module.setup(self)
 
     async def load_extensions(self):
-        extensions = [
+        # Mandatory modules that cannot be disabled
+        mandatory_modules = [
             "modules.admin.logger_module",
-            "modules.media.spotify_module",
-            "modules.user.birthday_module",
-            "modules.money.currency_module",
-            # Add other modules here
+            "modules.admin.policy_module",
         ]
-        for extension in extensions:
+
+        # Load mandatory modules
+        for extension in mandatory_modules:
+            await self.load_extension(extension)
+
+        # Load enabled modules from configuration
+        for extension in config.ENABLED_MODULES:
             await self.load_extension(extension)
 
     async def on_ready(self):
