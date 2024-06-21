@@ -103,23 +103,29 @@ class SpotifyModule:
         @app_commands.command(
             name="play_playlist",
             description="Play a playlist by searching for it"
+            "or providing a link"
         )
         async def play_playlist(interaction: discord.Interaction, query: str):
             await interaction.response.defer()
             try:
-                results = self.sp.search(q=query, limit=1, type="playlist")
-                if not results["playlists"]["items"]:
-                    await interaction.followup.send(
-                        embed=discord.Embed(
-                            title="Play Playlist",
-                            description="No results found",
-                            color=discord.Color.red()
+                # Check if the query is a link
+                if query.startswith("https://open.spotify.com/playlist/"):
+                    uri = query.split("/")[-1].split("?")[0]
+                    uri = f"spotify:playlist:{uri}"
+                else:
+                    # Search for the playlist
+                    results = self.sp.search(q=query, limit=1, type="playlist")
+                    if not results["playlists"]["items"]:
+                        await interaction.followup.send(
+                            embed=discord.Embed(
+                                title="Play Playlist",
+                                description="No results found",
+                                color=discord.Color.red()
+                            )
                         )
-                    )
-                    return
-
-                playlist = results["playlists"]["items"][0]
-                uri = playlist["uri"]
+                        return
+                    playlist = results["playlists"]["items"][0]
+                    uri = playlist["uri"]
 
                 devices = self.sp.devices()
                 if not devices["devices"]:
@@ -136,10 +142,11 @@ class SpotifyModule:
                 self.sp.start_playback(context_uri=uri)
                 embed = discord.Embed(
                     title="Now Playing Playlist",
-                    description=f"{playlist['name']} by {playlist['owner']['display_name']}",  # noqa: E501
+                    description=f"{playlist['name']} by {playlist['owner']['display_name']}" if not query.startswith("https://open.spotify.com/playlist/") else "Playing playlist",  # noqa: E501
                     color=discord.Color.green()
                 )
-                embed.set_thumbnail(url=playlist['images'][0]['url'])
+                if not query.startswith("https://open.spotify.com/playlist/"):
+                    embed.set_thumbnail(url=playlist['images'][0]['url'])
                 await interaction.followup.send(embed=embed)
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")

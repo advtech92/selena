@@ -8,11 +8,13 @@ class Selena(discord.Client):
         self.tree = discord.app_commands.CommandTree(self)
 
     async def setup_hook(self):
+        guild = discord.Object(id=config.DISCORD_GUILD_ID)
         modules = ["modules.media.spotify_module",
                    "modules.media.plex_module"]
         for module in modules:
             await self.load_extension(module)
-        await self.tree.sync()
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
 
     async def load_extension(self, name):
         module = __import__(name, fromlist=["setup"])

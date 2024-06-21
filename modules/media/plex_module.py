@@ -12,6 +12,35 @@ class PlexModule:
 
     def add_commands(self):
         @app_commands.command(
+            name="list_clients", description="List all available Plex clients"
+        )
+        async def list_clients(interaction: discord.Interaction):
+            await interaction.response.defer()
+            try:
+                clients = self.plex.clients()
+                if not clients:
+                    await interaction.followup.send(
+                        embed=discord.Embed(
+                            title="Plex Clients",
+                            description="No clients found",
+                            color=discord.Color.red()
+                        )
+                    )
+                    return
+
+                client_info = "\n".join(
+                    [f"{client.title} (ID: {client.machineIdentifier})" for client in clients]  # noqa: E501
+                )
+                embed = discord.Embed(
+                    title="Plex Clients",
+                    description=client_info,
+                    color=discord.Color.blue()
+                )
+                await interaction.followup.send(embed=embed)
+            except Exception as e:
+                await interaction.followup.send(f"An error occurred: {e}")
+
+        @app_commands.command(
             name="list_libraries", description="List all Plex libraries"
         )
         async def list_libraries(interaction: discord.Interaction):
@@ -64,19 +93,20 @@ class PlexModule:
             description="Play a movie on a specified Plex client"
         )
         async def play_movie(
-            interaction: discord.Interaction, client_name: str, movie_name: str
+            interaction: discord.Interaction, movie_name: str,
+            client_name: str = None
         ):
             await interaction.response.defer()
             try:
                 client = next(
                     (c for c in self.plex.clients() if c.title == client_name),
-                    None
+                    self.plex.clients()[0] if self.plex.clients() else None
                 )
                 if not client:
                     await interaction.followup.send(
                         embed=discord.Embed(
                             title="Play Movie",
-                            description=f"No client found with the name '{client_name}'",  # noqa: E501
+                            description="No clients available to play the movie",  # noqa: E501
                             color=discord.Color.red()
                         )
                     )
@@ -86,7 +116,7 @@ class PlexModule:
                 client.playMedia(movie)
                 embed = discord.Embed(
                     title="Playing Movie",
-                    description=f"Playing '{movie_name}' on '{client_name}'",
+                    description=f"Playing '{movie_name}' on '{client.title}'",
                     color=discord.Color.green()
                 )
                 await interaction.followup.send(embed=embed)
@@ -98,20 +128,20 @@ class PlexModule:
             description="Play a TV show on a specified Plex client"
         )
         async def play_tv_show(
-            interaction: discord.Interaction, client_name: str, library: str,
-            show_name: str, season: int, episode: int
+            interaction: discord.Interaction, library: str, show_name: str,
+            season: int, episode: int, client_name: str = None
         ):
             await interaction.response.defer()
             try:
                 client = next(
                     (c for c in self.plex.clients() if c.title == client_name),
-                    None
+                    self.plex.clients()[0] if self.plex.clients() else None
                 )
                 if not client:
                     await interaction.followup.send(
                         embed=discord.Embed(
                             title="Play TV Show",
-                            description=f"No client found with the name '{client_name}'",  # noqa: E501
+                            description="No clients available to play the TV show",  # noqa: E501
                             color=discord.Color.red()
                         )
                     )
@@ -122,13 +152,14 @@ class PlexModule:
                 client.playMedia(episode)
                 embed = discord.Embed(
                     title="Playing TV Show",
-                    description=f"Playing '{show_name}' S{season}E{episode} on '{client_name}'",  # noqa: E501
+                    description=f"Playing '{show_name}' S{season}E{episode} on '{client.title}'",  # noqa: E501
                     color=discord.Color.green()
                 )
                 await interaction.followup.send(embed=embed)
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
+        self.bot.tree.add_command(list_clients)
         self.bot.tree.add_command(list_libraries)
         self.bot.tree.add_command(search_library)
         self.bot.tree.add_command(play_movie)
