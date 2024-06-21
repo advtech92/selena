@@ -9,8 +9,7 @@ class Selena(discord.Client):
 
     async def setup_hook(self):
         guild = discord.Object(id=config.DISCORD_GUILD_ID)
-        modules = ["modules.media.spotify_module",
-                   "modules.media.plex_module"]
+        modules = ["modules.media.spotify_module"]
         for module in modules:
             await self.load_extension(module)
         self.tree.copy_global_to(guild=guild)
