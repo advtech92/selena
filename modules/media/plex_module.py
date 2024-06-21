@@ -1,7 +1,12 @@
+import logging
 import discord
 from discord import app_commands
 from plexapi.server import PlexServer
+from plexapi.client import PlexClient
 import config
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 
 class PlexModule:
@@ -17,7 +22,15 @@ class PlexModule:
         async def list_clients(interaction: discord.Interaction):
             await interaction.response.defer()
             try:
+                logging.debug("Attempting to fetch Plex clients from /clients")
                 clients = self.plex.clients()
+                if not clients:
+                    logging.debug("No clients found using /clients,"
+                                  "attempting /status/sessions")
+                    sessions = self.plex.sessions()
+                    clients = [player for session in sessions
+                               for player in session.players]
+                logging.debug(f"Clients found: {clients}")
                 if not clients:
                     await interaction.followup.send(
                         embed=discord.Embed(
@@ -38,6 +51,7 @@ class PlexModule:
                 )
                 await interaction.followup.send(embed=embed)
             except Exception as e:
+                logging.error(f"Error fetching clients: {e}")
                 await interaction.followup.send(f"An error occurred: {e}")
 
         @app_commands.command(
@@ -55,6 +69,7 @@ class PlexModule:
                 )
                 await interaction.followup.send(embed=embed)
             except Exception as e:
+                logging.error(f"Error fetching libraries: {e}")
                 await interaction.followup.send(f"An error occurred: {e}")
 
         @app_commands.command(
@@ -86,6 +101,7 @@ class PlexModule:
                 )
                 await interaction.followup.send(embed=embed)
             except Exception as e:
+                logging.error(f"Error searching library: {e}")
                 await interaction.followup.send(f"An error occurred: {e}")
 
         @app_commands.command(
@@ -100,8 +116,16 @@ class PlexModule:
             try:
                 client = next(
                     (c for c in self.plex.clients() if c.title == client_name),
-                    self.plex.clients()[0] if self.plex.clients() else None
+                    None
                 )
+                if not client:
+                    logging.debug("No clients found using /clients,"
+                                  "attempting /status/sessions")
+                    sessions = self.plex.sessions()
+                    clients = [player for session in sessions
+                               for player in session.players]
+                    client = clients[0] if clients else None
+
                 if not client:
                     await interaction.followup.send(
                         embed=discord.Embed(
@@ -112,8 +136,11 @@ class PlexModule:
                     )
                     return
 
+                # Ensure the client object is properly initialized
                 movie = self.plex.library.section('Movies').get(movie_name)
-                client.playMedia(movie)
+                client_url = f"http://{client.address}:{client.port}"
+                plex_client = PlexClient(client_url, self.plex._token)
+                plex_client.playMedia(movie)
                 embed = discord.Embed(
                     title="Playing Movie",
                     description=f"Playing '{movie_name}' on '{client.title}'",
@@ -121,6 +148,7 @@ class PlexModule:
                 )
                 await interaction.followup.send(embed=embed)
             except Exception as e:
+                logging.error(f"Error playing movie: {e}")
                 await interaction.followup.send(f"An error occurred: {e}")
 
         @app_commands.command(
@@ -135,8 +163,16 @@ class PlexModule:
             try:
                 client = next(
                     (c for c in self.plex.clients() if c.title == client_name),
-                    self.plex.clients()[0] if self.plex.clients() else None
+                    None
                 )
+                if not client:
+                    logging.debug("No clients found using /clients,"
+                                  "attempting /status/sessions")
+                    sessions = self.plex.sessions()
+                    clients = [player for session in sessions
+                               for player in session.players]
+                    client = clients[0] if clients else None
+
                 if not client:
                     await interaction.followup.send(
                         embed=discord.Embed(
@@ -147,9 +183,12 @@ class PlexModule:
                     )
                     return
 
+                # Ensure the client object is properly initialized
                 show = self.plex.library.section(library).get(show_name)
                 episode = show.season(season).episode(episode)
-                client.playMedia(episode)
+                client_url = f"http://{client.address}:{client.port}"
+                plex_client = PlexClient(client_url, self.plex._token)
+                plex_client.playMedia(episode)
                 embed = discord.Embed(
                     title="Playing TV Show",
                     description=f"Playing '{show_name}' S{season}E{episode} on '{client.title}'",  # noqa: E501
@@ -157,6 +196,7 @@ class PlexModule:
                 )
                 await interaction.followup.send(embed=embed)
             except Exception as e:
+                logging.error(f"Error playing TV show: {e}")
                 await interaction.followup.send(f"An error occurred: {e}")
 
         self.bot.tree.add_command(list_clients)
