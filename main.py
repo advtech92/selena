@@ -22,6 +22,7 @@ class Selena(discord.Client):
             "modules.admin.logger_module",
             "modules.media.spotify_module",
             "modules.user.birthday_module",
+            "modules.money.currency_module",
             # Add other modules here
         ]
         for extension in extensions:
