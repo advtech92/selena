@@ -20,9 +20,9 @@ class CurrencyModule:
 
     def add_commands(self):
         @app_commands.command(
-            name="earn_currency", description="Earn currency"
+            name="earn_kibble", description="Earn Kibble"
         )
-        async def earn_currency(interaction: discord.Interaction):
+        async def earn_kibble(interaction: discord.Interaction):
             await interaction.response.defer()
             try:
                 conn = get_connection()
@@ -37,13 +37,13 @@ class CurrencyModule:
                     if datetime.now() - last_earned < CurrencyModule.COOLDOWN_PERIOD:
                         await interaction.followup.send(
                             embed=discord.Embed(
-                                title="Earn Currency",
+                                title="Earn Kibble",
                                 description="You are on cooldown. Please try again later.",
                                 color=discord.Color.red()
                             )
                         )
                         conn.close()
-                        logger.info(f"User {user_id} attempted to earn currency but is on cooldown.")
+                        logger.info(f"User {user_id} attempted to earn Kibble but is on cooldown.")
                         return
 
                 amount = random.choices([random.randint(1, 10), 100], [0.99, 0.01])[0]
@@ -57,18 +57,18 @@ class CurrencyModule:
                 conn.close()
                 await interaction.followup.send(
                     embed=discord.Embed(
-                        title="Earn Currency",
-                        description=f"You have earned {amount} currency. Your new balance is {new_balance}.",
+                        title="Earn Kibble",
+                        description=f"You have earned {amount} Kibble. Your new balance is {new_balance}.",
                         color=discord.Color.green()
                     )
                 )
-                logger.info(f"User {user_id} earned {amount} currency. New balance: {new_balance}")
+                logger.info(f"User {user_id} earned {amount} Kibble. New balance: {new_balance}")
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
-                logger.error(f"Error in earn_currency command: {e}")
+                logger.error(f"Error in earn_kibble command: {e}")
 
         @app_commands.command(
-            name="check_balance", description="Check your currency balance"
+            name="check_balance", description="Check your Kibble balance"
         )
         async def check_balance(interaction: discord.Interaction):
             await interaction.response.defer()
@@ -82,7 +82,7 @@ class CurrencyModule:
                     await interaction.followup.send(
                         embed=discord.Embed(
                             title="Check Balance",
-                            description=f"Your current balance is {result[0]} currency.",
+                            description=f"Your current balance is {result[0]} Kibble.",
                             color=discord.Color.green()
                         )
                     )
@@ -91,16 +91,16 @@ class CurrencyModule:
                     await interaction.followup.send(
                         embed=discord.Embed(
                             title="Check Balance",
-                            description="You have no currency.",
+                            description="You have no Kibble.",
                             color=discord.Color.red()
                         )
                     )
-                    logger.info(f"User {interaction.user.id} has no currency.")
+                    logger.info(f"User {interaction.user.id} has no Kibble.")
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
                 logger.error(f"Error in check_balance command: {e}")
 
-        self.bot.tree.add_command(earn_currency)
+        self.bot.tree.add_command(earn_kibble)
         self.bot.tree.add_command(check_balance)
 
 

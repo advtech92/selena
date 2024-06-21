@@ -15,7 +15,7 @@ class Selena(discord.Client):
         guild = discord.Object(id=config.DISCORD_GUILD_ID)
         await self.load_extensions()
         self.tree.copy_global_to(guild=guild)
-        await self.tree.sync()
+        await self.tree.sync(guild=guild)
 
     async def load_extension(self, name):
         module = __import__(name, fromlist=["setup"])
