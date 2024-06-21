@@ -8,12 +8,16 @@ class Selena(discord.Client):
         self.tree = discord.app_commands.CommandTree(self)
 
     async def setup_hook(self):
-        for extension in ["cogs.spotify_cog"]:
-            await self.load_extension(extension)
+        await self.load_extension("modules.spotify_module")
         await self.tree.sync()
 
+    async def load_extension(self, name):
+        module = __import__(name, fromlist=["setup"])
+        await module.setup(self)
+
     async def on_ready(self):
-        print("Logged in as {0.user}".format(self))
+        print(f'Logged in as {self.user} (ID: {self.user.id})')
+        print('------')
 
 
 if __name__ == "__main__":
