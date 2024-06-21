@@ -75,6 +75,37 @@ class SpotifyModule:
                 await interaction.followup.send(f"An error occurred: {e}")
 
         @app_commands.command(
+            name="play_playlist",
+            description="Play a playlist by searching for it"
+        )
+        async def play_playlist(interaction: discord.Interaction, query: str):
+            await interaction.response.defer()
+            try:
+                results = self.sp.search(q=query, limit=1, type="playlist")
+                if not results["playlists"]["items"]:
+                    await interaction.followup.send("No results found")
+                    return
+
+                playlist = results["playlists"]["items"][0]
+                uri = playlist["uri"]
+
+                devices = self.sp.devices()
+                if not devices["devices"]:
+                    await interaction.followup.send(
+                        "No active devices found. Please open Spotify on a "
+                        "device."
+                    )
+                    return
+
+                self.sp.start_playback(context_uri=uri)
+                await interaction.followup.send(
+                    f"Now playing playlist: {playlist['name']} by "
+                    f"{playlist['owner']['display_name']}"
+                )
+            except Exception as e:
+                await interaction.followup.send(f"An error occurred: {e}")
+
+        @app_commands.command(
             name="pause", description="Pause the currently playing track"
         )
         async def pause(interaction: discord.Interaction):
@@ -122,6 +153,7 @@ class SpotifyModule:
 
         self.bot.tree.add_command(current_track)
         self.bot.tree.add_command(play_track)
+        self.bot.tree.add_command(play_playlist)
         self.bot.tree.add_command(pause)
         self.bot.tree.add_command(resume)
         self.bot.tree.add_command(next_track)
