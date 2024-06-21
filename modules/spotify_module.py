@@ -30,10 +30,12 @@ class SpotifyModule:
             try:
                 current = self.sp.currently_playing()
                 if current is None or current["item"] is None:
-                    await interaction.followup.send("No song is currently playing")
+                    await interaction.followup.send(
+                        "No song is currently playing"
+                    )
                 else:
                     track = current["item"]
-                    artist = ", ".join([artist["name"] for artist in track["artists"]])
+                    artist = ", ".join([a["name"] for a in track["artists"]])
                     await interaction.followup.send(
                         f"Currently playing: {track['name']} by {artist} "
                         f"({track['album']['name']})"
@@ -57,13 +59,16 @@ class SpotifyModule:
 
                 devices = self.sp.devices()
                 if not devices["devices"]:
-                    await interaction.followup.send("No active devices found. Please open Spotify on a device.")
+                    await interaction.followup.send(
+                        "No active devices found. Please open Spotify on a "
+                        "device."
+                    )
                     return
 
                 self.sp.start_playback(uris=[uri])
                 await interaction.followup.send(
                     f"Now playing: {track['name']} by "
-                    f"{', '.join([artist['name'] for artist in track['artists']])} "
+                    f"{', '.join([a['name'] for a in track['artists']])} "
                     f"({track['album']['name']})"
                 )
             except Exception as e:
@@ -109,7 +114,9 @@ class SpotifyModule:
             await interaction.response.defer()
             try:
                 self.sp.previous_track()
-                await interaction.followup.send("Returned to the previous track.")
+                await interaction.followup.send(
+                    "Returned to the previous track."
+                )
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
