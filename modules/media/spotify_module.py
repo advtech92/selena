@@ -31,15 +31,26 @@ class SpotifyModule:
                 current = self.sp.currently_playing()
                 if current is None or current["item"] is None:
                     await interaction.followup.send(
-                        "No song is currently playing"
+                        embed=discord.Embed(
+                            title="Current Track",
+                            description="No song is currently playing",
+                            color=discord.Color.red()
+                        )
                     )
                 else:
                     track = current["item"]
                     artist = ", ".join([a["name"] for a in track["artists"]])
-                    await interaction.followup.send(
-                        f"Currently playing: {track['name']} by {artist} "
-                        f"({track['album']['name']})"
+                    embed = discord.Embed(
+                        title="Current Track",
+                        description=f"{track['name']} by {artist}",
+                        color=discord.Color.green()
                     )
+                    embed.add_field(
+                        name="Album", value=track['album']['name'],
+                        inline=False
+                    )
+                    embed.set_thumbnail(url=track['album']['images'][0]['url'])
+                    await interaction.followup.send(embed=embed)
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
@@ -51,7 +62,13 @@ class SpotifyModule:
             try:
                 results = self.sp.search(q=query, limit=1, type="track")
                 if not results["tracks"]["items"]:
-                    await interaction.followup.send("No results found")
+                    await interaction.followup.send(
+                        embed=discord.Embed(
+                            title="Play Track",
+                            description="No results found",
+                            color=discord.Color.red()
+                        )
+                    )
                     return
 
                 track = results["tracks"]["items"][0]
@@ -60,17 +77,26 @@ class SpotifyModule:
                 devices = self.sp.devices()
                 if not devices["devices"]:
                     await interaction.followup.send(
-                        "No active devices found. Please open Spotify on a "
-                        "device."
+                        embed=discord.Embed(
+                            title="Play Track",
+                            description="No active devices found."
+                            "Please open Spotify on a device.",
+                            color=discord.Color.red()
+                        )
                     )
                     return
 
                 self.sp.start_playback(uris=[uri])
-                await interaction.followup.send(
-                    f"Now playing: {track['name']} by "
-                    f"{', '.join([a['name'] for a in track['artists']])} "
-                    f"({track['album']['name']})"
+                embed = discord.Embed(
+                    title="Now Playing",
+                    description=f"{track['name']} by {', '.join([a['name'] for a in track['artists']])}",  # noqa: E501
+                    color=discord.Color.green()
                 )
+                embed.add_field(
+                    name="Album", value=track['album']['name'], inline=False
+                )
+                embed.set_thumbnail(url=track['album']['images'][0]['url'])
+                await interaction.followup.send(embed=embed)
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
@@ -83,7 +109,13 @@ class SpotifyModule:
             try:
                 results = self.sp.search(q=query, limit=1, type="playlist")
                 if not results["playlists"]["items"]:
-                    await interaction.followup.send("No results found")
+                    await interaction.followup.send(
+                        embed=discord.Embed(
+                            title="Play Playlist",
+                            description="No results found",
+                            color=discord.Color.red()
+                        )
+                    )
                     return
 
                 playlist = results["playlists"]["items"][0]
@@ -92,16 +124,23 @@ class SpotifyModule:
                 devices = self.sp.devices()
                 if not devices["devices"]:
                     await interaction.followup.send(
-                        "No active devices found. Please open Spotify on a "
-                        "device."
+                        embed=discord.Embed(
+                            title="Play Playlist",
+                            description="No active devices found."
+                            "Please open Spotify on a device.",
+                            color=discord.Color.red()
+                        )
                     )
                     return
 
                 self.sp.start_playback(context_uri=uri)
-                await interaction.followup.send(
-                    f"Now playing playlist: {playlist['name']} by "
-                    f"{playlist['owner']['display_name']}"
+                embed = discord.Embed(
+                    title="Now Playing Playlist",
+                    description=f"{playlist['name']} by {playlist['owner']['display_name']}",  # noqa: E501
+                    color=discord.Color.green()
                 )
+                embed.set_thumbnail(url=playlist['images'][0]['url'])
+                await interaction.followup.send(embed=embed)
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
@@ -112,7 +151,13 @@ class SpotifyModule:
             await interaction.response.defer()
             try:
                 self.sp.pause_playback()
-                await interaction.followup.send("Playback paused.")
+                await interaction.followup.send(
+                    embed=discord.Embed(
+                        title="Pause",
+                        description="Playback paused.",
+                        color=discord.Color.green()
+                    )
+                )
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
@@ -123,7 +168,13 @@ class SpotifyModule:
             await interaction.response.defer()
             try:
                 self.sp.start_playback()
-                await interaction.followup.send("Playback resumed.")
+                await interaction.followup.send(
+                    embed=discord.Embed(
+                        title="Resume",
+                        description="Playback resumed.",
+                        color=discord.Color.green()
+                    )
+                )
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
@@ -134,7 +185,13 @@ class SpotifyModule:
             await interaction.response.defer()
             try:
                 self.sp.next_track()
-                await interaction.followup.send("Skipped to the next track.")
+                await interaction.followup.send(
+                    embed=discord.Embed(
+                        title="Next Track",
+                        description="Skipped to the next track.",
+                        color=discord.Color.green()
+                    )
+                )
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
 
@@ -146,7 +203,11 @@ class SpotifyModule:
             try:
                 self.sp.previous_track()
                 await interaction.followup.send(
-                    "Returned to the previous track."
+                    embed=discord.Embed(
+                        title="Previous Track",
+                        description="Returned to the previous track.",
+                        color=discord.Color.green()
+                    )
                 )
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {e}")
