@@ -29,6 +29,18 @@ def initialize_db():
             discord_channel_id INTEGER
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS followed_youtube_channels (
+            youtube_channel_id TEXT PRIMARY KEY,
+            discord_channel_id INTEGER
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS youtube_status (
+            youtube_channel_id TEXT PRIMARY KEY,
+            last_video_id TEXT
+        )
+    ''')
 
     conn.commit()
     conn.close()
