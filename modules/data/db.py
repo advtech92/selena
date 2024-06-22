@@ -41,6 +41,13 @@ def initialize_db():
             last_video_id TEXT
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_xp (
+            user_id INTEGER PRIMARY KEY,
+            xp INTEGER,
+            level INTEGER
+        )
+    ''')
 
     conn.commit()
     conn.close()

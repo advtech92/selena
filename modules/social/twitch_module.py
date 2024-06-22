@@ -75,7 +75,7 @@ class TwitchModule:
                     logger.error(f"Error checking live status for {twitch_name}: {e}", exc_info=True)
 
             conn.close()
-            await asyncio.sleep(120)  # Check every 2 minutes for testing purposes
+            await asyncio.sleep(300)  # Check every 5 minutes
 
     def add_commands(self):
         @app_commands.command(

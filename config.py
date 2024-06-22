@@ -19,6 +19,7 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 ENABLED_MODULES = [
     "modules.media.spotify_module",
     "modules.user.birthday_module",
+    "modules.user.xp_module",
     "modules.money.currency_module",
     "modules.social.twitch_module",
     "modules.social.youtube_module",
