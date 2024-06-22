@@ -33,7 +33,7 @@ class XPModule:
         xp = random.randint(1, 5)  # Award between 1 and 5 XP for a message
         logger.debug(f"Awarding {xp} XP to user {user_id}")
         self.give_xp(user_id, xp)
-        self.cooldown[user_id] = now + timedelta(seconds=60)  # 1 minute cooldown # noqa: E501
+        self.cooldown[user_id] = now + timedelta(seconds=10)  # 1 minute cooldown # noqa: E501
 
     def give_xp(self, user_id, xp):
         conn = get_connection()
