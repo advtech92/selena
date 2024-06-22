@@ -22,6 +22,14 @@ def initialize_db():
         )
     ''')
 
+    # Followed channels table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS followed_channels (
+            twitch_name TEXT PRIMARY KEY,
+            discord_channel_id INTEGER
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
