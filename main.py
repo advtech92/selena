@@ -1,6 +1,8 @@
-import discord
-import config
 import logging
+
+import discord
+
+import config
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -37,11 +39,14 @@ class Selena(discord.Client):
             await self.load_extension(extension)
 
     async def on_ready(self):
-        print(f'Logged in as {self.user} (ID: {self.user.id})')
-        print('------')
+        print(f"Logged in as {self.user} (ID: {self.user.id})")
+        print("------")
 
 
 if __name__ == "__main__":
+    # Enable message content intent
     intents = discord.Intents.default()
+    intents.message_content = True
+
     client = Selena(intents=intents)
     client.run(config.DISCORD_TOKEN)

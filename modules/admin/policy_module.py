@@ -1,6 +1,7 @@
+import logging
+
 import discord
 from discord import app_commands
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class PolicyModule:
                     embed=discord.Embed(
                         title="Privacy Policy",
                         description=privacy_policy_text,
-                        color=discord.Color.blue()
+                        color=discord.Color.blue(),
                     )
                 )
                 logger.info(f"User {interaction.user.id} viewed the privacy policy")
@@ -93,7 +94,7 @@ class PolicyModule:
                     embed=discord.Embed(
                         title="Terms of Service",
                         description=tos_text,
-                        color=discord.Color.blue()
+                        color=discord.Color.blue(),
                     )
                 )
                 logger.info(f"User {interaction.user.id} viewed the terms of service")

@@ -1,7 +1,5 @@
 # modules/admin/logging_config.py
 
-import logging
-import logging.handlers
 import os
 
 LOG_DIR = "logs"
@@ -14,9 +12,7 @@ logging_config = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "standard": {
-            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-        },
+        "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
     },
     "handlers": {
         "console": {
@@ -29,7 +25,7 @@ logging_config = {
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "standard",
             "filename": LOG_FILE,
-            "maxBytes": 1024*1024*5,  # 5 MB
+            "maxBytes": 1024 * 1024 * 5,  # 5 MB
             "backupCount": 3,
         },
     },
