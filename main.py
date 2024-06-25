@@ -3,9 +3,11 @@ from config import config
 
 TOKEN = config['DISCORD_TOKEN']
 GUILD_ID = config['GUILD_ID']
+DISCORD_CHANNEL_ID = config['DISCORD_CHANNEL_ID']
 
 intents = discord.Intents.default()
 intents.messages = True
+guild = discord.Object(id=GUILD_ID)
 
 
 class Selena(discord.Client):
@@ -25,11 +27,14 @@ class Selena(discord.Client):
             xp = XP(self)
             xp.setup(self.tree)
 
+        if config['modules']['twitch']['enabled']:
+            from modules.social.twitch import Twitch
+            twitch = Twitch(self)
+            twitch.setup(self.tree)
+
     async def setup_hook(self):
-        self.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
-        await self.tree.sync(guild=discord.Object(id=GUILD_ID))
-        # Force sync for all commands
-        await self.tree.sync()
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
 
 
 bot = Selena()
