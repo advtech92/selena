@@ -9,6 +9,9 @@ config = {
     'modules': {
         'currency': {
             'enabled': True
+        },
+        'xp': {
+            'enabled': True
         }
     }
 }

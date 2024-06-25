@@ -20,9 +20,16 @@ class Selena(discord.Client):
             currency = Currency(self)
             currency.setup(self.tree)
 
+        if config['modules']['xp']['enabled']:
+            from modules.user.xp import XP
+            xp = XP(self)
+            xp.setup(self.tree)
+
     async def setup_hook(self):
         self.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
         await self.tree.sync(guild=discord.Object(id=GUILD_ID))
+        # Force sync for all commands
+        await self.tree.sync()
 
 
 bot = Selena()
