@@ -37,12 +37,17 @@ class Selena(discord.Client):
             xp = XP(self)
             xp.setup(self.tree)
 
+        if config['modules']['birthday']['enabled']:
+            from modules.user.birthday import Birthday
+            birthday = Birthday(self)
+            birthday.setup(self.tree)
+
 
 bot = Selena()
 
 
 @bot.event
 async def on_ready():
-    logging.info(f'Bot {bot.user.name} has connected to Discord!')
+    logging.info(f'{bot.user.name} has connected to Discord!')
 
 bot.run(TOKEN)

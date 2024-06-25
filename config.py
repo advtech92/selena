@@ -12,6 +12,9 @@ config = {
         },
         'xp': {
             'enabled': True
+        },
+        'birthday': {
+            'enabled': True
         }
     }
 }
