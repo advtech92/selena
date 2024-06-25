@@ -163,3 +163,5 @@ cython_debug/
 /modules/user/__init__.py
 /modules/__init__.py
 /data/selena.db
+/modules/social/__init__.py
+/clear_commands.py
