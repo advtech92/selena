@@ -160,3 +160,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+/modules/user/__init__.py
+/modules/__init__.py
+/data/selena.db
