@@ -20,9 +20,6 @@ class Selena(discord.Client):
 
     async def setup_hook(self):
         logging.info("Setting up modules...")
-        if self.twitch:
-            logging.info("Setting up Twitch module asynchronously...")
-            await self.twitch.setup_hook()
         self.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
         await self.tree.sync(guild=discord.Object(id=GUILD_ID))
 
@@ -41,6 +38,11 @@ class Selena(discord.Client):
             from modules.user.birthday import Birthday
             birthday = Birthday(self)
             birthday.setup(self.tree)
+
+        if config['modules']['destiny2']['enabled']:
+            from modules.games.destiny2 import Destiny2
+            destiny2 = Destiny2(self)
+            destiny2.setup(self.tree)
 
 
 bot = Selena()
