@@ -49,6 +49,11 @@ class Selena(discord.Client):
             music = Music(self)
             music.setup(self.tree)
 
+        if config['modules']['youtube']['enabled']:
+            from modules.social.youtube import YouTube
+            youtube = YouTube(self)
+            youtube.setup(self.tree)
+
 
 bot = Selena()
 

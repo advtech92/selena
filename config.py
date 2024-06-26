@@ -7,6 +7,7 @@ config = {
     'DISCORD_TOKEN': os.getenv('DISCORD_TOKEN'),
     'GUILD_ID': int(os.getenv('DISCORD_GUILD_ID')),
     'DISCORD_CHANNEL_ID': int(os.getenv('DISCORD_CHANNEL_ID')),
+    'YOUTUBE_API_KEY': os.getenv('YOUTUBE_API_KEY'),
     'BUNGIE_API_KEY': os.getenv('BUNGIE_API_KEY'),
     'OAUTH_URL': os.getenv('OAUTH_URL'),
     'OAUTH_CLIENT_ID': os.getenv('OAUTH_CLIENT_ID'),
@@ -24,6 +25,9 @@ config = {
             'enabled': False
         },
         'music': {
+            'enabled': True
+        },
+        'youtube': {
             'enabled': True
         }
     }
