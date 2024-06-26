@@ -10,7 +10,7 @@ class Music:
         self.bot = bot
         self.logger = logging.getLogger('Music')
         self.logger.setLevel(logging.DEBUG)
-        handler = logging.FileHandler(filename='music.log', encoding='utf-8', mode='w')
+        handler = logging.FileHandler(filename='log/selena.log', encoding='utf-8', mode='w')
         handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s:%(message)s'))
         self.logger.addHandler(handler)
         self.ydl_opts = {
@@ -22,6 +22,7 @@ class Music:
             }],
             'quiet': True
         }
+        self.volume = 0.25  # Default volume (25%)
 
     async def search_youtube(self, query):
         with youtube_dl.YoutubeDL(self.ydl_opts) as ydl:
@@ -82,7 +83,7 @@ class Music:
             title = info.get('title')
             self.logger.debug(f'Playing URL: {url}')
             try:
-                source = await discord.FFmpegOpusAudio.from_probe(url)
+                source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url), volume=self.volume)
                 interaction.guild.voice_client.play(source)
                 embed = discord.Embed(description=f'Now playing: **{title}**', color=discord.Color.green())
                 await interaction.followup.send(embed=embed)
@@ -124,6 +125,19 @@ class Music:
         else:
             await interaction.followup.send(embed=discord.Embed(description="I'm not playing anything right now.", color=discord.Color.red()))
 
+    async def set_volume(self, interaction: discord.Interaction, volume: float):
+        self.logger.debug(f'User {interaction.user} is attempting to set volume to {volume}')
+
+        if 0 <= volume <= 1:
+            self.volume = volume
+            if interaction.guild.voice_client and interaction.guild.voice_client.source:
+                interaction.guild.voice_client.source.volume = volume
+            await interaction.followup.send(embed=discord.Embed(description=f"Volume set to {volume*100:.0f}%", color=discord.Color.green()))
+            self.logger.info(f'Volume set to {volume*100:.0f}%')
+        else:
+            await interaction.followup.send(embed=discord.Embed(description="Volume must be between 0 and 1.", color=discord.Color.red()))
+            self.logger.error('Invalid volume level attempted')
+
     def setup(self, tree: app_commands.CommandTree):
         @tree.command(name="join", description="Join the voice channel")
         async def join_command(interaction: discord.Interaction):
@@ -154,6 +168,11 @@ class Music:
         async def stop_command(interaction: discord.Interaction):
             await interaction.response.defer()  # Defer the interaction response
             await self.stop(interaction)
+
+        @tree.command(name="volume", description="Set the volume (0 to 1)")
+        async def volume_command(interaction: discord.Interaction, volume: float):
+            await interaction.response.defer()  # Defer the interaction response
+            await self.set_volume(interaction, volume)
 
 
 def setup(bot):
