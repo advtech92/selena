@@ -81,11 +81,18 @@ class Music:
         if info:
             url = info['url']
             title = info.get('title')
+            uploader = info.get('uploader', 'Unknown')
+            duration = info.get('duration', 0)
+            thumbnail = info.get('thumbnail', '')
             self.logger.debug(f'Playing URL: {url}')
             try:
-                source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url), volume=self.volume)
+                ffmpeg_options = {
+                    'options': f'-vn -filter:a "volume={self.volume}"'
+                }
+                source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url, **ffmpeg_options), volume=self.volume)
                 interaction.guild.voice_client.play(source)
-                embed = discord.Embed(description=f'Now playing: **{title}**', color=discord.Color.green())
+                embed = discord.Embed(title=title, description=f"Uploader: {uploader}\nDuration: {duration // 60}:{duration % 60:02d}", color=discord.Color.green())
+                embed.set_thumbnail(url=thumbnail)
                 await interaction.followup.send(embed=embed)
                 self.logger.info(f'Now playing: {title}')
             except Exception as e:
