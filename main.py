@@ -44,6 +44,11 @@ class Selena(discord.Client):
             destiny2 = Destiny2(self)
             destiny2.setup(self.tree)
 
+        if config['modules']['music']['enabled']:
+            from modules.music.music import Music
+            music = Music(self)
+            music.setup(self.tree)
+
 
 bot = Selena()
 

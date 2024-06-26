@@ -21,6 +21,9 @@ config = {
             'enabled': True
         },
         'destiny2': {
+            'enabled': False
+        },
+        'music': {
             'enabled': True
         }
     }

@@ -163,3 +163,4 @@ cython_debug/
 /data/selena.db
 /clear_commands.py
 __init__.py
+/ffmpeg
