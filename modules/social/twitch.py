@@ -60,9 +60,9 @@ class Twitch:
                 return data['data'][0]  # Return the first stream (should only be one)
         return None
 
-    async def fetch_user_info(self, user_id):
+    async def fetch_user_info(self, user_login):
         await self.ensure_token()
-        url = f"https://api.twitch.tv/helix/users?id={user_id}"
+        url = f"https://api.twitch.tv/helix/users?login={user_login}"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'Client-Id': self.client_id
@@ -77,27 +77,25 @@ class Twitch:
     async def check_channels(self):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT channel_name, alert_channel_id FROM twitch_channels")
+        cursor.execute("SELECT channel_name, alert_channel_id, logo_url FROM twitch_channels")
         channels = cursor.fetchall()
-        for channel_name, alert_channel_id in channels:
+        for channel_name, alert_channel_id, logo_url in channels:
             channel_info = await self.fetch_channel_info(channel_name)
             if channel_info and not self.channel_alerts.get(channel_name):
-                await self.send_alert(alert_channel_id, channel_info)
+                await self.send_alert(alert_channel_id, channel_info, logo_url)
                 self.channel_alerts[channel_name] = True
             elif not channel_info and self.channel_alerts.get(channel_name):
                 self.channel_alerts[channel_name] = False
         conn.close()
 
-    async def send_alert(self, alert_channel_id, channel_info):
-        user_info = await self.fetch_user_info(channel_info['user_id'])
+    async def send_alert(self, alert_channel_id, channel_info, logo_url=None):
         channel = self.bot.get_channel(alert_channel_id)
         if channel:
             title = channel_info['title']
             url = f"https://www.twitch.tv/{channel_info['user_login']}"
             thumbnail = channel_info['thumbnail_url'].replace('{width}', '320').replace('{height}', '180')
-            logo = user_info['profile_image_url'] if user_info else None
             embed = discord.Embed(title=title, url=url, color=discord.Color.purple())
-            embed.set_thumbnail(url=logo if logo else thumbnail)
+            embed.set_thumbnail(url=logo_url if logo_url else thumbnail)
             embed.add_field(name="Channel", value=channel_info['user_name'], inline=True)
             embed.add_field(name="Game", value=channel_info['game_name'], inline=True)
             await channel.send(embed=embed)
@@ -105,12 +103,17 @@ class Twitch:
     def setup(self, tree: app_commands.CommandTree):
         @tree.command(name="add_twitch_channel", description="Add a Twitch channel to monitor")
         async def add_twitch_channel_command(interaction: discord.Interaction, channel_name: str, alert_channel: discord.TextChannel):
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO twitch_channels (channel_name, alert_channel_id) VALUES (?, ?)", (channel_name, alert_channel.id))
-            conn.commit()
-            conn.close()
-            await interaction.response.send_message(embed=discord.Embed(description=f"Added Twitch channel {channel_name} to monitor.", color=discord.Color.green()))
+            user_info = await self.fetch_user_info(channel_name)
+            if user_info:
+                logo_url = user_info['profile_image_url']
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO twitch_channels (channel_name, alert_channel_id, logo_url) VALUES (?, ?, ?)", (channel_name, alert_channel.id, logo_url))
+                conn.commit()
+                conn.close()
+                await interaction.response.send_message(embed=discord.Embed(description=f"Added Twitch channel {channel_name} to monitor.", color=discord.Color.green()))
+            else:
+                await interaction.response.send_message(embed=discord.Embed(description=f"Could not find Twitch channel {channel_name}.", color=discord.Color.red()))
 
         @tree.command(name="remove_twitch_channel", description="Remove a Twitch channel from monitoring")
         async def remove_twitch_channel_command(interaction: discord.Interaction, channel_name: str):
@@ -124,17 +127,20 @@ class Twitch:
         @tree.command(name="check_twitch_channel", description="Check if a Twitch channel is live")
         async def check_twitch_channel_command(interaction: discord.Interaction, channel_name: str):
             channel_info = await self.fetch_channel_info(channel_name)
-            user_info = await self.fetch_user_info(channel_info['user_id']) if channel_info else None
+            user_info = await self.fetch_user_info(channel_name)
+            logo = user_info['profile_image_url'] if user_info else None
             if channel_info:
                 thumbnail = channel_info['thumbnail_url'].replace('{width}', '320').replace('{height}', '180')
-                logo = user_info['profile_image_url'] if user_info else None
                 embed = discord.Embed(title=f"{channel_info['user_name']} is live!", url=f"https://www.twitch.tv/{channel_info['user_login']}", color=discord.Color.purple())
-                embed.set_thumbnail(url=logo if logo else thumbnail)
+                embed.set_thumbnail(url=thumbnail)
                 embed.add_field(name="Title", value=channel_info['title'], inline=False)
                 embed.add_field(name="Game", value=channel_info['game_name'], inline=False)
                 await interaction.response.send_message(embed=embed)
             else:
-                await interaction.response.send_message(embed=discord.Embed(description=f"{channel_name} is not live.", color=discord.Color.red()))
+                embed = discord.Embed(description=f"{channel_name} is not live.", color=discord.Color.red())
+                if logo:
+                    embed.set_thumbnail(url=logo)
+                await interaction.response.send_message(embed=embed)
 
         if not tree.get_command("add_twitch_channel"):
             tree.add_command(add_twitch_channel_command)
