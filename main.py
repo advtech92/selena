@@ -1,3 +1,4 @@
+# main.py
 import discord
 from config import config
 import logging
@@ -15,7 +16,6 @@ class Selena(discord.Client):
     def __init__(self):
         super().__init__(intents=intents)
         self.tree = discord.app_commands.CommandTree(self)
-        self.twitch = None
         self.load_modules()
 
     async def setup_hook(self):
@@ -58,6 +58,11 @@ class Selena(discord.Client):
             from modules.social.twitch import Twitch
             twitch = Twitch(self)
             twitch.setup(self.tree)
+
+        if config['modules']['update']['enabled']:
+            from modules.admin.update import setup as update_setup
+            branch_name = config.get('UPDATE_BRANCH', 'dev-rework')
+            update_setup(self, branch=branch_name)
 
 
 bot = Selena()

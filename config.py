@@ -14,26 +14,14 @@ config = {
     'OAUTH_URL': os.getenv('OAUTH_URL'),
     'OAUTH_CLIENT_ID': os.getenv('OAUTH_CLIENT_ID'),
     'modules': {
-        'currency': {
-            'enabled': True
-        },
-        'xp': {
-            'enabled': True
-        },
-        'birthday': {
-            'enabled': True
-        },
-        'destiny2': {
-            'enabled': False
-        },
-        'music': {
-            'enabled': True
-        },
-        'youtube': {
-            'enabled': True
-        },
-        'twitch': {
-            'enabled': True
-        }
-    }
+        'currency': {'enabled': True},
+        'xp': {'enabled': True},
+        'birthday': {'enabled': True},
+        'destiny2': {'enabled': False},
+        'music': {'enabled': True},
+        'youtube': {'enabled': True},
+        'twitch': {'enabled': True},
+        'update': {'enabled': True}
+    },
+    'UPDATE_BRANCH': 'dev-rework'
 }
