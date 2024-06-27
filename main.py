@@ -54,6 +54,11 @@ class Selena(discord.Client):
             youtube = YouTube(self)
             youtube.setup(self.tree)
 
+        if config['modules']['twitch']['enabled']:
+            from modules.social.twitch import Twitch
+            twitch = Twitch(self)
+            twitch.setup(self.tree)
+
 
 bot = Selena()
 
