@@ -14,7 +14,7 @@ class Currency:
         guild_id = str(interaction.guild_id)
         user_id = str(interaction.user.id)
         earned = random.randint(1, 10)
-        
+
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""

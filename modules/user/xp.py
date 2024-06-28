@@ -20,7 +20,7 @@ class XP:
         guild_id = str(interaction.guild_id)
         user_id = str(interaction.user.id)
         earned_xp = random.randint(5, 15)
-        
+
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
