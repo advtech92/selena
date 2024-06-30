@@ -1,4 +1,3 @@
-# main.py
 import discord
 from config import config
 import logging
@@ -16,6 +15,7 @@ class Selena(discord.Client):
     def __init__(self):
         super().__init__(intents=intents)
         self.tree = discord.app_commands.CommandTree(self)
+        self.twitch = None
         self.load_modules()
 
     async def setup_hook(self):
@@ -61,18 +61,15 @@ class Selena(discord.Client):
 
         if config['modules']['update']['enabled']:
             from modules.admin.update import setup as update_setup
-            update_setup = update_setup(self)
             update_setup(self.tree)
 
         if config['modules']['data_privacy']['enabled']:
-            from modules.admin.data_privacy import DataPrivacy
-            data_privacy = DataPrivacy(self)
-            data_privacy.setup(self.tree)
+            from modules.admin.data_privacy import setup as data_privacy_setup
+            data_privacy_setup(self.tree)
 
-        if config['modules']['terms_privacy']['enabled']:
-            from modules.admin.terms_privacy import TermsPrivacy
-            terms_privacy = TermsPrivacy(self)
-            terms_privacy.setup(self.tree)
+        if config['modules']['term_privacy']['enabled']:
+            from modules.admin.term_privacy import setup as term_privacy_setup
+            term_privacy_setup(self.tree)
 
 
 bot = Selena()
