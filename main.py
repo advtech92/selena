@@ -64,6 +64,16 @@ class Selena(discord.Client):
             branch_name = config.get('UPDATE_BRANCH', 'dev-rework')
             update_setup(self, branch=branch_name)
 
+        if config['modules']['data_privacy']['enabled']:
+            from modules.admin.data_privacy import DataPrivacy
+            data_privacy = DataPrivacy(self)
+            data_privacy.setup(self.tree)
+
+        if config['modules']['terms_privacy']['enabled']:
+            from modules.admin.terms_privacy import TermsPrivacy
+            terms_privacy = TermsPrivacy(self)
+            terms_privacy.setup(self.tree)
+
 
 bot = Selena()
 

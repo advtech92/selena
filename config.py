@@ -21,7 +21,9 @@ config = {
         'music': {'enabled': True},
         'youtube': {'enabled': True},
         'twitch': {'enabled': True},
-        'update': {'enabled': True}
+        'update': {'enabled': True},
+        'data_privacy': {'enabled': True},
+        'term_privacy': {'enabled': True}
     },
     'UPDATE_BRANCH': 'dev-rework'
 }
