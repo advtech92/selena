@@ -1,15 +1,14 @@
-# modules/admin/update.py
 import discord
 from discord import app_commands
 import os
-import subprocess
 import logging
+import subprocess
+import sys
 
 
 class Update:
-    def __init__(self, bot, branch='dev-rework'):
+    def __init__(self, bot):
         self.bot = bot
-        self.branch = branch
         self.logger = logging.getLogger('Update')
         self.logger.setLevel(logging.DEBUG)
         handler = logging.FileHandler(filename='log/selena.log', encoding='utf-8', mode='w')
@@ -17,31 +16,41 @@ class Update:
         self.logger.addHandler(handler)
 
     async def update_bot(self, interaction: discord.Interaction):
-        await interaction.response.send_message(embed=discord.Embed(description="Updating Selena...", color=discord.Color.green()))
+        try:
+            await interaction.response.send_message(embed=discord.Embed(description="Updating Selena...", color=discord.Color.green()))
+        except discord.errors.InteractionResponded:
+            await interaction.followup.send(embed=discord.Embed(description="Updating Selena...", color=discord.Color.green()))
 
-        self.logger.info(f"Pulling latest code from Git repository on branch {self.branch}...")
-        subprocess.run(["git", "fetch"], check=True)
-        subprocess.run(["git", "checkout", self.branch], check=True)
-        subprocess.run(["git", "pull", "origin", self.branch], check=True)
+        # Fetch updates from the specified branch
+        branch = 'main'  # change this to your branch if necessary
+        result = subprocess.run(['git', 'pull', 'origin', branch], capture_output=True, text=True)
 
-        self.logger.info("Installing dependencies...")
-        subprocess.run(["pip", "install", "-r", "requirements.txt"], check=True)
+        if result.returncode == 0:
+            self.logger.info("Successfully pulled updates from the repository")
+            self.logger.info(result.stdout)
+            try:
+                await interaction.followup.send(embed=discord.Embed(description="Successfully updated Selena. Restarting...", color=discord.Color.green()))
+            except discord.errors.InteractionResponded:
+                await interaction.followup.send(embed=discord.Embed(description="Successfully updated Selena. Restarting...", color=discord.Color.green()))
 
-        await interaction.followup.send(embed=discord.Embed(description="Update completed. Restarting Selena...", color=discord.Color.green()))
-        self.logger.info("Update completed. Restarting Selena...")
-
-        os._exit(0)
+            # Restart the bot (this is just a placeholder, modify according to your setup)
+            os.execv(sys.executable, ['python'] + sys.argv)
+        else:
+            self.logger.error(f"Failed to pull updates: {result.stderr}")
+            try:
+                await interaction.followup.send(embed=discord.Embed(description="Failed to update Selena. Check logs for details.", color=discord.Color.red()))
+            except discord.errors.InteractionResponded:
+                await interaction.followup.send(embed=discord.Embed(description="Failed to update Selena. Check logs for details.", color=discord.Color.red()))
 
     def setup(self, tree: app_commands.CommandTree):
-        @tree.command(name="update", description="Update Selena to the latest version")
+        @tree.command(name="update", description="Update the bot to the latest version")
         async def update_command(interaction: discord.Interaction):
-            await interaction.response.defer()  # Defer the interaction response
             await self.update_bot(interaction)
 
         if not tree.get_command("update"):
             tree.add_command(update_command)
 
 
-def setup(bot, branch='dev-rework'):
-    updater = Update(bot, branch=branch)
-    updater.setup(bot.tree)
+def setup(bot):
+    update = Update(bot)
+    update.setup(bot.tree)
