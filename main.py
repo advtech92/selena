@@ -61,8 +61,8 @@ class Selena(discord.Client):
 
         if config['modules']['update']['enabled']:
             from modules.admin.update import setup as update_setup
-            branch_name = config.get('UPDATE_BRANCH', 'dev-rework')
-            update_setup(self, branch=branch_name)
+            update_setup = update_setup(self)
+            update_setup(self.tree)
 
         if config['modules']['data_privacy']['enabled']:
             from modules.admin.data_privacy import DataPrivacy

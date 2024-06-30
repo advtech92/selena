@@ -24,6 +24,5 @@ config = {
         'update': {'enabled': True},
         'data_privacy': {'enabled': True},
         'term_privacy': {'enabled': True}
-    },
-    'UPDATE_BRANCH': 'dev-rework'
+    }
 }
