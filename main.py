@@ -69,6 +69,7 @@ class Selena(discord.Client):
             from modules.social.twitch import Twitch
             twitch = Twitch(self)
             twitch.setup(self.tree)
+            self.twitch_module = twitch
             logging.info("Twitch module loaded")
 
         if config['modules']['update']['enabled']:

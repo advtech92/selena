@@ -103,9 +103,20 @@ class Twitch:
             embed.add_field(name="Game", value=channel_info['game_name'], inline=True)
             await channel.send(embed=embed)
 
+    async def is_channel_followed(self, channel_name):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM twitch_channels WHERE channel_name = ?", (channel_name,))
+        result = cursor.fetchone()
+        conn.close()
+        return result is not None
+
     def setup(self, tree: app_commands.CommandTree):
         @tree.command(name="add_twitch_channel", description="Add a Twitch channel to monitor")
         async def add_twitch_channel_command(interaction: discord.Interaction, channel_name: str, alert_channel: discord.TextChannel):
+            if await self.is_channel_followed(channel_name):
+                await interaction.response.send_message(embed=discord.Embed(description=f"Twitch channel {channel_name} is already being monitored.", color=discord.Color.orange()))
+                return
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("INSERT INTO twitch_channels (channel_name, alert_channel_id) VALUES (?, ?)", (channel_name, alert_channel.id))
@@ -115,6 +126,9 @@ class Twitch:
 
         @tree.command(name="remove_twitch_channel", description="Remove a Twitch channel from monitoring")
         async def remove_twitch_channel_command(interaction: discord.Interaction, channel_name: str):
+            if not await self.is_channel_followed(channel_name):
+                await interaction.response.send_message(embed=discord.Embed(description=f"Twitch channel {channel_name} is not being monitored.", color=discord.Color.red()))
+                return
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM twitch_channels WHERE channel_name = ?", (channel_name,))
