@@ -22,20 +22,22 @@ class KnucklebonesGame:
         column -= 1  # Adjust for 1-based index
         self.columns[player][column].insert(0, dice)  # Place at the top of the column
         self.clear_matching_dice(player, dice, column)
-        self.calculate_score(player)
+        self.calculate_score()
 
     def clear_matching_dice(self, player, dice, column):
         opponent = self.other_player()
         opponent_column = self.columns[opponent][column]
         self.columns[opponent][column] = [d for d in opponent_column if d != dice]
+        self.calculate_score()  # Update score after clearing dice
 
-    def calculate_score(self, player):
-        total_score = 0
-        for column in self.columns[player]:
-            if column:
-                column_score = sum(column) * len(column)
-                total_score += column_score
-        self.scores[player] = total_score
+    def calculate_score(self):
+        for player in self.players:
+            total_score = 0
+            for column in self.columns[player]:
+                if column:
+                    column_score = sum(column) * len(column)
+                    total_score += column_score
+            self.scores[player] = total_score
 
     def next_turn(self):
         self.turn = (self.turn + 1) % 2
