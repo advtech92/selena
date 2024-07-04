@@ -69,6 +69,7 @@ class KnucklebonesGame:
 
     def render_player_board(self, player, is_opponent):
         board_str = ""
+        board_str += "  ".join([f"{sum(col)}" for col in self.columns[player]]) + "\n"  # Column totals
         for row in range(3):
             for col in range(3):
                 if is_opponent:
@@ -80,6 +81,7 @@ class KnucklebonesGame:
                 else:
                     board_str += "|   "
             board_str += "|\n"
+        board_str += f"Score: {self.scores[player]}\n"  # Player's total score
         return board_str
 
 
