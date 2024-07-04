@@ -91,9 +91,8 @@ class Selena(discord.Client):
             logging.info("Terms and Privacy module loaded")
 
         if config['modules']['knucklebones']['enabled']:
-            from modules.games.knucklebones import Knucklebones
-            knucklebones = Knucklebones(self)
-            knucklebones.setup(self.tree)
+            from modules.games.knucklebones import setup as knucklebones_setup
+            knucklebones_setup(self)
             logging.info("Knucklebones module loaded")
 
 

@@ -20,7 +20,7 @@ class KnucklebonesGame:
 
     def place_dice(self, player, dice, column):
         column -= 1  # Adjust for 1-based index
-        self.columns[player][column].insert(0, dice)
+        self.columns[player][column].insert(0, dice)  # Place at the top of the column
         self.clear_matching_dice(player, dice, column)
         self.calculate_score(player)
 
@@ -57,25 +57,30 @@ class KnucklebonesGame:
         else:
             return None  # It's a tie
 
-    def render_board(self):
+    def render_board(self, perspective_player):
+        opponent = self.other_player() if perspective_player == self.current_player() else self.current_player()
         board_str = "```\n"
-        board_str += f"{self.other_player().display_name}'s Board\n"
-        board_str += self.render_player_board(self.other_player(), True)
-        board_str += "\n\n"
-        board_str += f"{self.current_player().display_name}'s Board\n"
-        board_str += self.render_player_board(self.current_player(), False)
+        board_str += f"{opponent.display_name}'s Board\n"
+        board_str += self.render_player_board(opponent, True)
+        board_str += "---------\n"  # Separator between boards
+        board_str += f"{perspective_player.display_name}'s Board\n"
+        board_str += self.render_player_board(perspective_player, False)
         board_str += "```"
         return board_str
 
     def render_player_board(self, player, is_opponent):
         board_str = ""
-        for col in self.columns[player]:
-            if is_opponent:
-                col_str = " | ".join(str(dice) for dice in col)
-                board_str += f"| {col_str:^5} |\n"
-            else:
-                col_str = " | ".join(str(dice) for dice in col)
-                board_str = f"| {col_str:^5} |\n" + board_str
+        for row in range(3):
+            for col in range(3):
+                if is_opponent:
+                    dice = self.columns[player][col]
+                else:
+                    dice = list(reversed(self.columns[player][col]))
+                if len(dice) > row:
+                    board_str += f"| {dice[row]} "
+                else:
+                    board_str += "|   "
+            board_str += "|\n"
         return board_str
 
 
@@ -108,46 +113,7 @@ class Knucklebones:
                 await self.deduct_kibble(player1.id, bet)
                 if player2 != self.bot.user:
                     await self.deduct_kibble(player2.id, bet)
-            await thread.send(f"{player1.mention} has started a game of Knucklebones against {player2.mention}!\n{player1.mention}, it's your turn to roll the dice with `/roll_dice`.\n{game.render_board()}")
-
-        @tree.command(name="roll_dice", description="Roll dice for your turn in Knucklebones")
-        async def roll_dice_command(interaction: discord.Interaction):
-            game = self.games.get(interaction.channel_id)
-            if not game:
-                await interaction.response.send_message("There is no game in progress in this thread.", ephemeral=True)
-                return
-            if interaction.user != game.current_player():
-                await interaction.response.send_message("It's not your turn.", ephemeral=True)
-                return
-            dice = game.roll_dice()
-            await interaction.response.send_message(f"{interaction.user.mention} rolled a {dice}! Use `/place_dice` to place it in a column.\n{game.render_board()}")
-
-        @tree.command(name="place_dice", description="Place your rolled dice in a column")
-        async def place_dice_command(interaction: discord.Interaction, column: int):
-            game = self.games.get(interaction.channel_id)
-            if not game:
-                await interaction.response.send_message("There is no game in progress in this thread.", ephemeral=True)
-                return
-            if interaction.user != game.current_player():
-                await interaction.response.send_message("It's not your turn.", ephemeral=True)
-                return
-            if column < 1 or column > 3:
-                await interaction.response.send_message("Invalid column. Choose a column between 1 and 3.", ephemeral=True)
-                return
-            game.place_dice(interaction.user, game.current_dice, column)
-            if game.is_game_over():
-                winner = game.winner()
-                if winner:
-                    await self.award_kibble(winner.id, game.bet * 2)
-                    await interaction.channel.send(f"{winner.mention} wins the game and {game.bet * 2} Kibble!\n{game.render_board()}")
-                else:
-                    await interaction.channel.send(f"The game is a tie!\n{game.render_board()}")
-                del self.games[interaction.channel_id]
-            else:
-                game.next_turn()
-                await interaction.response.send_message(f"{interaction.user.mention} placed the dice in column {column}.\nIt's now {game.current_player().mention}'s turn!\n{game.render_board()}")
-                if game.current_player() == self.bot.user:
-                    await self.play_bot_turn(interaction.channel, game)
+            await thread.send(f"{player1.mention} has started a game of Knucklebones against {player2.mention}!\n{player1.mention}, it's your turn to roll the dice.", view=RollDiceView(self.bot))
 
         @tree.command(name="check_score", description="Check the current score in Knucklebones")
         async def check_score_command(interaction: discord.Interaction):
@@ -161,12 +127,6 @@ class Knucklebones:
         if not tree.get_command("start_knucklebones"):
             tree.add_command(start_knucklebones_command)
 
-        if not tree.get_command("roll_dice"):
-            tree.add_command(roll_dice_command)
-
-        if not tree.get_command("place_dice"):
-            tree.add_command(place_dice_command)
-
         if not tree.get_command("check_score"):
             tree.add_command(check_score_command)
 
@@ -178,13 +138,13 @@ class Knucklebones:
             winner = game.winner()
             if winner:
                 await self.award_kibble(winner.id, game.bet * 2)
-                await channel.send(f"{winner.mention} wins the game and {game.bet * 2} Kibble!\n{game.render_board()}")
+                await channel.send(f"{winner.mention} wins the game and {game.bet * 2} Kibble!\n{game.render_board(self.bot.user)}")
             else:
-                await channel.send(f"The game is a tie!\n{game.render_board()}")
+                await channel.send(f"The game is a tie!\n{game.render_board(self.bot.user)}")
             del self.games[channel.id]
         else:
             game.next_turn()
-            await channel.send(f"{self.bot.user.mention} rolled a {dice} and placed it in column {column}.\nIt's now {game.current_player().mention}'s turn!\n{game.render_board()}")
+            await channel.send(f"{self.bot.user.mention} rolled a {dice} and placed it in column {column}.\nIt's now {game.current_player().mention}'s turn!\n{game.render_board(self.bot.user)}", view=RollDiceView(self.bot))
 
     async def has_enough_kibble(self, user_id, amount):
         conn = sqlite3.connect(self.db_path)
@@ -207,6 +167,68 @@ class Knucklebones:
         cursor.execute("UPDATE currency SET kibble = kibble + ? WHERE user_id = ?", (amount, user_id))
         conn.commit()
         conn.close()
+
+
+class RollDiceView(discord.ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.button(label="Roll Dice", style=discord.ButtonStyle.primary)
+    async def roll_dice_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        game = self.bot.knucklebones_module.games.get(interaction.channel_id)
+        if not game:
+            await interaction.response.send_message("There is no game in progress in this thread.", ephemeral=True)
+            return
+        if interaction.user != game.current_player():
+            await interaction.response.send_message("It's not your turn.", ephemeral=True)
+            return
+        dice = game.roll_dice()
+        await interaction.response.send_message(f"{interaction.user.mention} rolled a {dice}! Choose a column to place it in.", view=PlaceDiceView(self.bot, dice))
+
+
+class PlaceDiceView(discord.ui.View):
+    def __init__(self, bot, dice):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.dice = dice
+
+    @discord.ui.button(label="Column 1", style=discord.ButtonStyle.secondary)
+    async def column_1_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.place_dice(interaction, 1)
+
+    @discord.ui.button(label="Column 2", style=discord.ButtonStyle.secondary)
+    async def column_2_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.place_dice(interaction, 2)
+
+    @discord.ui.button(label="Column 3", style=discord.ButtonStyle.secondary)
+    async def column_3_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.place_dice(interaction, 3)
+
+    async def place_dice(self, interaction, column):
+        game = self.bot.knucklebones_module.games.get(interaction.channel_id)
+        if not game:
+            await interaction.response.send_message("There is no game in progress in this thread.", ephemeral=True)
+            return
+        if interaction.user != game.current_player():
+            await interaction.response.send_message("It's not your turn.", ephemeral=True)
+            return
+        game.place_dice(interaction.user, self.dice, column)
+        if game.is_game_over():
+            winner = game.winner()
+            if winner:
+                await self.bot.knucklebones_module.award_kibble(winner.id, game.bet * 2)
+                await interaction.response.send_message(f"{winner.mention} wins the game and {game.bet * 2} Kibble!\n{game.render_board(interaction.user)}")
+            else:
+                await interaction.response.send_message(f"The game is a tie!\n{game.render_board(interaction.user)}")
+            del self.bot.knucklebones_module.games[interaction.channel_id]
+        else:
+            game.next_turn()
+            await interaction.response.send_message(f"{interaction.user.mention} placed {self.dice} in column {column}.\nIt's now {game.current_player().mention}'s turn!\n{game.render_board(interaction.user)}")
+            if game.current_player() == self.bot.user:
+                await self.bot.knucklebones_module.play_bot_turn(interaction.channel, game)
+            else:
+                await interaction.channel.send(f"{game.current_player().mention}, it's your turn to roll the dice.", view=RollDiceView(self.bot))
 
 
 def setup(bot):
