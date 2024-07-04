@@ -48,7 +48,7 @@ class Selena(discord.Client):
             logging.info("Birthday module loaded")
 
         if config['modules']['destiny2']['enabled']:
-            from modules.games.destiny2 import Destiny2
+            from modules.social.destiny2 import Destiny2
             destiny2 = Destiny2(self)
             destiny2.setup(self.tree)
             logging.info("Destiny 2 module loaded")
@@ -89,6 +89,12 @@ class Selena(discord.Client):
             terms_privacy = TermsPrivacy(self)
             terms_privacy.setup(self.tree)
             logging.info("Terms and Privacy module loaded")
+
+        if config['modules']['knucklebones']['enabled']:
+            from modules.games.knucklebones import Knucklebones
+            knucklebones = Knucklebones(self)
+            knucklebones.setup(self.tree)
+            logging.info("Knucklebones module loaded")
 
 
 bot = Selena()

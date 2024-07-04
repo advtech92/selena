@@ -23,6 +23,7 @@ config = {
         'twitch': {'enabled': True},
         'update': {'enabled': True},
         'data_privacy': {'enabled': True},
-        'terms_privacy': {'enabled': True}
+        'terms_privacy': {'enabled': True},
+        'knucklebones': {'enabled': True}
     }
 }
