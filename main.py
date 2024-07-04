@@ -99,6 +99,7 @@ class Selena(discord.Client):
             from modules.user.profiles import Profiles
             profiles = Profiles(self)
             profiles.setup(self.tree)
+            self.profiles = profiles  # Properly set the profiles attribute
             logging.info("Profiles module loaded")
 
 
