@@ -24,6 +24,7 @@ config = {
         'update': {'enabled': True},
         'data_privacy': {'enabled': True},
         'terms_privacy': {'enabled': True},
-        'knucklebones': {'enabled': True}
+        'knucklebones': {'enabled': True},
+        'profiles': {'enabled': True}
     }
 }

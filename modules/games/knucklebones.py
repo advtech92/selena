@@ -146,16 +146,27 @@ class Knucklebones:
         column = random.randint(1, 3)
         game.place_dice(self.bot.user, dice, column)
         if game.is_game_over():
-            winner = game.winner()
-            if winner:
-                await self.award_kibble(winner.id, game.bet * 2)
-                await self.update_game_message(game, channel, f"{winner.mention} wins the game and {game.bet * 2} Kibble!\n{game.render_board()}")
-            else:
-                await self.update_game_message(game, channel, f"The game is a tie!\n{game.render_board()}")
-            del self.games[channel.id]
+            await self.end_game(channel, game)
         else:
             game.next_turn()
             await self.update_game_message(game, channel, f"{self.bot.user.mention} rolled a {dice} and placed it in column {column}.\nIt's now {game.current_player().mention}'s turn!\n{game.render_board()}", view=RollDiceView(self.bot))
+
+    async def end_game(self, channel, game):
+        winner = game.winner()
+        if winner:
+            await self.award_kibble(winner.id, game.bet * 2)
+            await self.bot.profiles.record_win(winner.id, "Knucklebones")
+            loser = game.other_player()
+            await self.bot.profiles.record_loss(loser.id, "Knucklebones")
+            await self.update_game_message(game, channel, f"{winner.mention} wins the game and {game.bet * 2} Kibble!\n{game.render_board()}")
+        else:
+            await self.update_game_message(game, channel, f"The game is a tie!\n{game.render_board()}")
+        del self.games[channel.id]
+        await self.schedule_thread_deletion(channel)
+
+    async def schedule_thread_deletion(self, channel):
+        await discord.utils.sleep_until(discord.utils.utcnow() + discord.timedelta(minutes=2))
+        await channel.delete()
 
     async def has_enough_kibble(self, user_id, amount):
         conn = sqlite3.connect(self.db_path)
@@ -226,13 +237,7 @@ class PlaceDiceView(discord.ui.View):
             return
         game.place_dice(interaction.user, self.dice, column)
         if game.is_game_over():
-            winner = game.winner()
-            if winner:
-                await self.bot.knucklebones_module.award_kibble(winner.id, game.bet * 2)
-                await self.bot.knucklebones_module.update_game_message(game, interaction, f"{winner.mention} wins the game and {game.bet * 2} Kibble!\n{game.render_board()}")
-            else:
-                await self.bot.knucklebones_module.update_game_message(game, interaction, f"The game is a tie!\n{game.render_board()}")
-            del self.bot.knucklebones_module.games[interaction.channel_id]
+            await self.bot.knucklebones_module.end_game(interaction.channel, game)
         else:
             game.next_turn()
             await self.bot.knucklebones_module.update_game_message(game, interaction, f"{interaction.user.mention} placed {self.dice} in column {column}.\nIt's now {game.current_player().mention}'s turn!\n{game.render_board()}", view=RollDiceView(self.bot))
