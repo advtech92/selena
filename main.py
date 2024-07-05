@@ -95,6 +95,11 @@ class Selena(discord.Client):
             knucklebones_setup(self)
             logging.info("Knucklebones module loaded")
 
+        if config['modules']['wordle']['enabled']:
+            from modules.games.wordle import setup as wordle_setup
+            wordle_setup(self)
+            logging.info("Wordle module loaded")
+
         if config['modules']['profiles']['enabled']:
             from modules.user.profiles import Profiles
             profiles = Profiles(self)

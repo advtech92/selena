@@ -25,6 +25,7 @@ config = {
         'data_privacy': {'enabled': True},
         'terms_privacy': {'enabled': True},
         'knucklebones': {'enabled': True},
+        'wordle': {'enabled': True},
         'profiles': {'enabled': True}
     }
 }
