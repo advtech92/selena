@@ -1,44 +1,38 @@
 import discord
+from discord import app_commands
 import random
 import logging
 import sqlite3
-from datetime import datetime
-from discord.ext import tasks
-from discord import app_commands
 from cryptography.fernet import Fernet
+import datetime
+import asyncio
 
 
 class WordleGame:
-    def __init__(self, user_id, guild_id, target_word):
-        self.user_id = user_id
-        self.guild_id = guild_id
-        self.target_word = target_word
+    def __init__(self, user, word, date):
+        self.user = user
+        self.word = word
+        self.date = date
         self.guesses = []
-        self.max_attempts = 6
 
-    def make_guess(self, guess):
-        if len(guess) != 5 or not guess.isalpha():
-            raise ValueError("Invalid guess. Must be a 5-letter word.")
+    def guess_word(self, guess):
+        self.guesses.append(guess)
+        return self.check_guess(guess)
 
-        feedback = ["⬜"] * 5
-        for i, char in enumerate(guess):
-            if char == self.target_word[i]:
-                feedback[i] = "🟩"
-            elif char in self.target_word:
-                feedback[i] = "🟨"
+    def check_guess(self, guess):
+        feedback = ['⬛'] * 5
+        for i, letter in enumerate(guess):
+            if letter == self.word[i]:
+                feedback[i] = '🟩'
+            elif letter in self.word:
+                feedback[i] = '🟨'
+        return ''.join(feedback)
 
-        self.guesses.append((guess, "".join(feedback)))
-        return feedback
+    def is_complete(self):
+        return self.guesses and self.guesses[-1] == self.word
 
-    def is_game_over(self):
-        return len(self.guesses) >= self.max_attempts or any(guess == self.target_word for guess, _ in self.guesses)
-
-    def is_winner(self):
-        return any(guess == self.target_word for guess, _ in self.guesses)
-
-    def render_game(self):
-        game_board = "\n".join([f"{guess}: {feedback}" for guess, feedback in self.guesses])
-        return f"```\n{game_board}\n```"
+    def render_board(self):
+        return "\n".join([f"Guess {i+1}: {guess} -> {self.check_guess(guess)}" for i, guess in enumerate(self.guesses)])
 
 
 class Wordle:
@@ -52,112 +46,144 @@ class Wordle:
         self.logger.addHandler(handler)
         self.db_path = 'data/selena.db'
 
-        # Load the word list
-        self.load_word_list()
+        self.key = self.load_key()
+        self.cipher_suite = Fernet(self.key)
+        self.words = self.load_words()
+
         self.ensure_table_exists()
 
-    def load_word_list(self):
+    def load_key(self):
         with open('data/wordlist.key', 'rb') as key_file:
-            key = key_file.read()
-        cipher_suite = Fernet(key)
+            return key_file.read()
 
+    def load_words(self):
         with open('data/encrypted_word_list.bin', 'rb') as f:
             encrypted_words = f.read().splitlines()
-
-        self.word_list = [cipher_suite.decrypt(word).decode() for word in encrypted_words]
+        return [self.cipher_suite.decrypt(word).decode() for word in encrypted_words]
 
     def ensure_table_exists(self):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS wordle_games (
+        CREATE TABLE IF NOT EXISTS wordle (
             user_id TEXT NOT NULL,
-            guild_id TEXT NOT NULL,
             date TEXT NOT NULL,
-            target_word TEXT NOT NULL,
+            word TEXT NOT NULL,
             guesses TEXT,
-            PRIMARY KEY (user_id, guild_id, date)
+            PRIMARY KEY (user_id, date)
         );
         """)
         conn.commit()
         conn.close()
 
+    def get_today_word(self):
+        today = datetime.date.today()
+        word_index = (today - datetime.date(2022, 1, 1)).days % len(self.words)
+        return self.words[word_index]
+
+    async def start_game(self, interaction):
+        user_id = str(interaction.user.id)
+        today = datetime.date.today().isoformat()
+        word = self.get_today_word()
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM wordle WHERE user_id = ? AND date = ?", (user_id, today))
+        row = cursor.fetchone()
+
+        if row:
+            await interaction.response.send_message("You have already played today's Wordle.", ephemeral=True)
+            return
+        else:
+            cursor.execute("INSERT INTO wordle (user_id, date, word) VALUES (?, ?, ?)", (user_id, today, word))
+            conn.commit()
+            conn.close()
+
+            thread = await interaction.channel.create_thread(name=f"Wordle: {interaction.user.display_name}", type=discord.ChannelType.public_thread)
+            self.games[thread.id] = WordleGame(interaction.user, word, today)
+            initial_message = await thread.send(f"{interaction.user.mention}, welcome to today's Wordle! Start guessing the 5-letter word.", view=WordleView(self.bot))
+            self.games[thread.id].message = initial_message
+            await interaction.response.send_message("Game started in a new thread!", ephemeral=True)
+
+    async def guess_word(self, interaction, guess):
+        game = self.games.get(interaction.channel_id)
+        if not game:
+            await interaction.response.send_message("There is no game in progress in this thread.", ephemeral=True)
+            return
+
+        if len(guess) != 5:
+            await interaction.response.send_message("Your guess must be a 5-letter word.", ephemeral=True)
+            return
+
+        feedback = game.guess_word(guess.lower())
+        if game.is_complete():
+            await self.update_game_message(game, interaction, f"{interaction.user.mention} guessed the word! The word was **{game.word}**.\n{game.render_board()}")
+            del self.games[interaction.channel_id]
+            await self.record_win(interaction.user.id)
+            await interaction.channel.send("This thread will be archived in 2 minutes.")
+            await asyncio.sleep(120)
+            await interaction.channel.archive()
+        else:
+            await self.update_game_message(game, interaction, f"{interaction.user.mention} guessed **{guess}**. Feedback: {feedback}\n{game.render_board()}")
+
+    async def update_game_message(self, game, interaction, content, view=None):
+        try:
+            await game.message.edit(content=content, view=view)
+        except discord.NotFound:
+            game.message = await interaction.channel.send(content=content, view=view)
+
+    async def record_win(self, user_id):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO wordle_stats (user_id, wins)
+            VALUES (?, 1)
+            ON CONFLICT(user_id)
+            DO UPDATE SET wins = wins + 1
+        """, (user_id,))
+        conn.commit()
+        conn.close()
+
+    async def record_loss(self, user_id):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO wordle_stats (user_id, losses)
+            VALUES (?, 1)
+            ON CONFLICT(user_id)
+            DO UPDATE SET losses = losses + 1
+        """, (user_id,))
+        conn.commit()
+        conn.close()
+
     def setup(self, tree: app_commands.CommandTree):
-        @tree.command(name="start_wordle", description="Start a new game of Wordle")
+        @tree.command(name="start_wordle", description="Start a game of Wordle")
         async def start_wordle_command(interaction: discord.Interaction):
-            user_id = str(interaction.user.id)
-            guild_id = str(interaction.guild.id)
-            date_str = datetime.utcnow().strftime('%Y-%m-%d')
-
-            # Check if the user has already played today's game
-            if self.has_played_today(user_id, guild_id, date_str):
-                await interaction.response.send_message("You have already played today's Wordle. Try again tomorrow!", ephemeral=True)
-                return
-
-            target_word = random.choice(self.word_list)
-            game = WordleGame(user_id, guild_id, target_word)
-            self.games[user_id] = game
-
-            # Save the game to the database
-            self.save_game(user_id, guild_id, date_str, target_word)
-
-            await interaction.response.send_message(f"New game of Wordle started!\n{game.render_game()}\nMake your guess using /guess_wordle [word]")
-
-        @tree.command(name="guess_wordle", description="Make a guess in your Wordle game")
-        async def guess_wordle_command(interaction: discord.Interaction, guess: str):
-            user_id = str(interaction.user.id)
-            game = self.games.get(user_id)
-            if not game:
-                await interaction.response.send_message("You don't have an active game. Start one using /start_wordle.", ephemeral=True)
-                return
-
-            try:
-                feedback = game.make_guess(guess.lower())
-                if game.is_game_over():
-                    if game.is_winner():
-                        await self.bot.profiles.record_win(user_id, str(interaction.guild.id), "wordle")
-                        await interaction.response.send_message(f"Congratulations! You guessed the word {game.target_word}!\n{game.render_game()}")
-                    else:
-                        await self.bot.profiles.record_loss(user_id, str(interaction.guild.id), "wordle")
-                        await interaction.response.send_message(f"Game over! The word was {game.target_word}.\n{game.render_game()}")
-                    del self.games[user_id]
-                else:
-                    await interaction.response.send_message(f"{game.render_game()}\nYour guess: {guess}\nFeedback: {''.join(feedback)}")
-            except ValueError as e:
-                await interaction.response.send_message(str(e), ephemeral=True)
-
-        @tree.command(name="end_wordle", description="End your current game of Wordle")
-        async def end_wordle_command(interaction: discord.Interaction):
-            user_id = str(interaction.user.id)
-            if user_id in self.games:
-                del self.games[user_id]
-                await interaction.response.send_message("Your game has been ended.")
-            else:
-                await interaction.response.send_message("You don't have an active game to end.", ephemeral=True)
+            await self.start_game(interaction)
 
         if not tree.get_command("start_wordle"):
             tree.add_command(start_wordle_command)
 
-        if not tree.get_command("guess_wordle"):
-            tree.add_command(guess_wordle_command)
 
-        if not tree.get_command("end_wordle"):
-            tree.add_command(end_wordle_command)
+class WordleView(discord.ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.bot = bot
 
-    def has_played_today(self, user_id, guild_id, date_str):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM wordle_games WHERE user_id = ? AND guild_id = ? AND date = ?", (user_id, guild_id, date_str))
-        result = cursor.fetchone()
-        conn.close()
-        return result is not None
+    @discord.ui.button(label="Guess Word", style=discord.ButtonStyle.primary)
+    async def guess_word_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(GuessInput(self.bot))
 
-    def save_game(self, user_id, guild_id, date_str, target_word):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO wordle_games (user_id, guild_id, date, target_word) VALUES (?, ?, ?, ?)", (user_id, guild_id, date_str, target_word))
-        conn.commit()
-        conn.close()
+
+class GuessInput(discord.ui.Modal, title="Wordle Guess"):
+    guess = discord.ui.TextInput(label="Your Guess", placeholder="Enter a 5-letter word...", max_length=5)
+
+    def __init__(self, bot):
+        super().__init__()
+        self.bot = bot
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.bot.wordle_module.guess_word(interaction, self.guess.value)
 
 
 def setup(bot):
