@@ -26,6 +26,7 @@ config = {
         'terms_privacy': {'enabled': True},
         'knucklebones': {'enabled': True},
         'wordle': {'enabled': True},
-        'profiles': {'enabled': True}
+        'profiles': {'enabled': True},
+        'tiktok': {'enabled': True}
     }
 }

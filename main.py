@@ -107,6 +107,12 @@ class Selena(discord.Client):
             self.profiles = profiles  # Properly set the profiles attribute
             logging.info("Profiles module loaded")
 
+        if config['modules']['tiktok']['enabled']:
+            from modules.social.tiktok import TikTok
+            tiktok = TikTok(self)
+            tiktok.setup(self.tree)
+            logging.info("TikTok module loaded")
+
 
 bot = Selena()
 

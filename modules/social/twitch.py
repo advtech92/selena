@@ -21,6 +21,20 @@ class Twitch:
         self.token = None
         self.token_expiry = None
         self.channel_alerts = {}
+        self.ensure_table_exists()
+
+    def ensure_table_exists(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS twitch_channels (
+            channel_name TEXT PRIMARY KEY,
+            alert_channel_id TEXT
+        );
+        """)
+        conn.commit()
+        conn.close()
+        self.logger.info('Twitch channels table ensured in database')
 
     async def get_token(self):
         url = "https://id.twitch.tv/oauth2/token"
