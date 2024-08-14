@@ -36,12 +36,12 @@ class Selena(discord.Client):
             logging.info("Music module loaded")
 
         if config['modules']['terms_privacy']['enabled']:
-            from modules.terms_privacy.terms_privacy import setup as terms_privacy_setup
+            from modules.admin.terms_privacy import setup as terms_privacy_setup
             terms_privacy_setup(self)
             logging.info("Terms and Privacy module loaded")
 
         if config['modules']['data_privacy']['enabled']:
-            from modules.data_privacy.data_privacy import setup as data_privacy_setup
+            from modules.admin.data_privacy import setup as data_privacy_setup
             data_privacy_setup(self)
             logging.info("Data Privacy module loaded")
 

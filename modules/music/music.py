@@ -19,13 +19,14 @@ FFMPEG_OPTIONS = {
 
 ytdl = YoutubeDL(YTDL_OPTIONS)
 
-
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.queue = []
         self.is_playing = False
         self.volume = 0.3
+        self.loop = False  # Initialize loop state
+        self.current_song = None  # Track the current song
 
     async def join(self, interaction: discord.Interaction):
         channel = interaction.user.voice.channel
@@ -53,14 +54,21 @@ class Music(commands.Cog):
             self.queue.append((url, info['title']))
             await interaction.followup.send(f'Queued: {info["title"]}')
         else:
+            self.current_song = (url, info['title'])
             source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS), volume=self.volume)
             interaction.guild.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(interaction)))
             self.is_playing = True
             await interaction.followup.send(f'Playing: {info["title"]}')
 
     async def play_next(self, interaction: discord.Interaction):
-        if self.queue:
+        if self.loop and self.current_song:  # If loop is active, repeat the current song
+            url, title = self.current_song
+            source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS), volume=self.volume)
+            interaction.guild.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(interaction)))
+            await interaction.followup.send(f'Repeating: {title}')
+        elif self.queue:
             url, title = self.queue.pop(0)
+            self.current_song = (url, title)
             source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS), volume=self.volume)
             interaction.guild.voice_client.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(interaction)))
             await interaction.followup.send(f'Playing next: {title}')
@@ -85,6 +93,7 @@ class Music(commands.Cog):
         if interaction.guild.voice_client.is_playing():
             interaction.guild.voice_client.stop()
             self.queue = []
+            self.current_song = None
             await interaction.followup.send("Stopped the song.")
         else:
             await interaction.followup.send("No song is currently playing.")
@@ -96,6 +105,11 @@ class Music(commands.Cog):
             await interaction.followup.send(f"Volume set to {volume * 100}%.")
         else:
             await interaction.followup.send("No audio source found.")
+
+    async def toggle_loop(self, interaction: discord.Interaction):
+        self.loop = not self.loop  # Toggle the loop state
+        state = "enabled" if self.loop else "disabled"
+        await interaction.followup.send(f"Loop has been {state}.")
 
     def setup(self, tree: discord.app_commands.CommandTree):
         @tree.command(name="join", description="Join the voice channel")
@@ -132,6 +146,11 @@ class Music(commands.Cog):
         async def volume_command(interaction: discord.Interaction, volume: float):
             await interaction.response.defer()
             await self.set_volume(interaction, volume)
+
+        @tree.command(name="loop", description="Toggle loop for the current song")
+        async def loop_command(interaction: discord.Interaction):
+            await interaction.response.defer()
+            await self.toggle_loop(interaction)
 
 
 def setup(bot):
