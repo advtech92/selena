@@ -19,6 +19,7 @@ FFMPEG_OPTIONS = {
 
 ytdl = YoutubeDL(YTDL_OPTIONS)
 
+
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -151,6 +152,30 @@ class Music(commands.Cog):
         async def loop_command(interaction: discord.Interaction):
             await interaction.response.defer()
             await self.toggle_loop(interaction)
+
+        if not tree.get_command("play"):
+            tree.add_command(play_command)
+
+        if not tree.get_command("pause"):
+            tree.add_command(pause_command)
+
+        if not tree.get_command("resume"):
+            tree.add_command(resume_command)
+
+        if not tree.get_command("stop"):
+            tree.add_command(stop_command)
+
+        if not tree.get_command("volume"):
+            tree.add_command(volume_command)
+
+        if not tree.get_command("loop"):
+            tree.add_command(loop_command)
+
+        if not tree.get_command("join"):
+            tree.add_command(join_command)
+
+        if not tree.get_command("leave"):
+            tree.add_command(leave_command)
 
 
 def setup(bot):

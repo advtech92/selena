@@ -31,18 +31,21 @@ class Selena(discord.Client):
 
     def load_modules(self):
         if config['modules']['music']['enabled']:
-            from modules.music.music import setup as music_setup
-            music_setup(self)
+            from modules.music.music import Music
+            music = Music(self)
+            music.setup(self.tree)
             logging.info("Music module loaded")
 
         if config['modules']['terms_privacy']['enabled']:
-            from modules.admin.terms_privacy import setup as terms_privacy_setup
-            terms_privacy_setup(self)
+            from modules.admin.terms_privacy import TermsPrivacy
+            terms_privacy = TermsPrivacy(self)
+            terms_privacy.setup(self.tree)
             logging.info("Terms and Privacy module loaded")
 
         if config['modules']['data_privacy']['enabled']:
-            from modules.admin.data_privacy import setup as data_privacy_setup
-            data_privacy_setup(self)
+            from modules.admin.data_privacy import DataPrivacy
+            data_privacy = DataPrivacy(self)
+            data_privacy.setup(self.tree)
             logging.info("Data Privacy module loaded")
 
 
