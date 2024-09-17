@@ -24,6 +24,8 @@ class Music:
         # Register app commands
         self.register_commands()
 
+        # Removed self.client.loop.create_task(self.auto_resume_playback()) from here
+
     def register_commands(self):
         @app_commands.command(name='play', description='Play a song by title and artist')
         async def play(interaction: discord.Interaction, *, query: str):
@@ -63,6 +65,90 @@ class Music:
         self.client.tree.add_command(leave)
         self.client.tree.add_command(volume)
 
+    async def auto_resume_playback(self):
+        await self.client.wait_until_ready()
+        for guild_id_str, url in self.current_tracks.items():
+            guild_id = int(guild_id_str)
+            guild = self.client.get_guild(guild_id)
+            if guild is None:
+                continue
+
+            # Find a voice channel the bot was connected to
+            voice_channel = None
+            for vc in guild.voice_channels:
+                if guild.me in vc.members:
+                    voice_channel = vc
+                    break
+
+            if voice_channel is None:
+                # If the bot was not in any voice channel, skip this guild
+                continue
+
+            # Connect to the voice channel
+            try:
+                self.voice_clients[guild_id] = await voice_channel.connect()
+            except discord.ClientException:
+                # Already connected to a voice channel in this guild
+                self.voice_clients[guild_id] = guild.voice_client
+
+            # Resume playing
+            await self.play_current_track(guild_id)
+
+    async def play_current_track(self, guild_id):
+        url = self.current_tracks.get(str(guild_id))
+        if not url:
+            return
+
+        try:
+            # Use yt_dlp to get audio source
+            ytdl_opts = {'format': 'bestaudio/best'}
+            loop = asyncio.get_event_loop()
+            with yt_dlp.YoutubeDL(ytdl_opts) as ytdl:
+                info = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+                audio_url = info['url']
+                title = info.get('title', 'Unknown Title')
+                webpage_url = info.get('webpage_url', url)
+                thumbnail = info.get('thumbnail')
+
+            # Prepare FFmpeg options
+            ffmpeg_opts = {
+                'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+                'options': '-vn',
+            }
+
+            # Create audio source using FFmpegPCMAudio
+            source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_opts)
+            volume = self.volumes.get(str(guild_id), self.default_volume)
+            source = discord.PCMVolumeTransformer(source, volume=volume)
+
+            # Play audio
+            self.voice_clients[guild_id].play(source, after=lambda e: self.after_song(e, guild_id))
+
+            # Send an embedded message indicating the song is now playing
+            embed = discord.Embed(
+                title="Auto-Resumed Playing 🎵",
+                description=f"[{title}]({webpage_url})",
+                color=discord.Color.green()
+            )
+            if thumbnail:
+                embed.set_thumbnail(url=thumbnail)
+
+            guild = self.client.get_guild(guild_id)
+            if guild:
+                text_channel = guild.system_channel or guild.text_channels[0]
+                try:
+                    await text_channel.send(embed=embed)
+                except discord.HTTPException as e:
+                    print(f"Failed to send message: {e}")
+
+            # Save state for auto-resume
+            self.save_music_state()
+
+        except Exception as e:
+            print(f"Error during auto-resume playback: {e}")
+            if guild_id in self.voice_clients and self.voice_clients[guild_id].is_connected():
+                await self.voice_clients[guild_id].disconnect()
+
     async def play(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
 
@@ -83,7 +169,7 @@ class Music:
 
         # Ensure volume is set
         if guild_id not in self.volumes:
-            self.volumes[guild_id] = self.default_volume
+            self.volumes[str(guild_id)] = self.default_volume
 
         await interaction.followup.send(f"🔍 **Searching for:** {query}")
 
@@ -135,7 +221,7 @@ class Music:
             return
 
         url = self.music_queues[guild_id].pop(0)
-        self.current_tracks[guild_id] = url
+        self.current_tracks[str(guild_id)] = url
 
         try:
             # Use yt_dlp to get audio source
@@ -156,7 +242,7 @@ class Music:
 
             # Create audio source using FFmpegPCMAudio
             source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_opts)
-            volume = self.volumes.get(guild_id, self.default_volume)
+            volume = self.volumes.get(str(guild_id), self.default_volume)
             source = discord.PCMVolumeTransformer(source, volume=volume)
 
             # Play audio
@@ -183,12 +269,13 @@ class Music:
                     self.current_interactions.pop(guild_id, None)
             else:
                 # Fallback to a default text channel
-                channel = self.voice_clients[guild_id].channel
-                text_channel = channel.guild.system_channel or channel.guild.text_channels[0]
-                try:
-                    await text_channel.send(embed=embed)
-                except discord.HTTPException as e:
-                    print(f"Failed to send message: {e}")
+                guild = self.client.get_guild(guild_id)
+                if guild:
+                    text_channel = guild.system_channel or guild.text_channels[0]
+                    try:
+                        await text_channel.send(embed=embed)
+                    except discord.HTTPException as e:
+                        print(f"Failed to send message: {e}")
 
             # Save state for auto-resume
             self.save_music_state()
@@ -233,6 +320,7 @@ class Music:
         if guild_id in self.voice_clients:
             self.voice_clients[guild_id].stop()
             self.music_queues[guild_id] = []
+            self.current_tracks.pop(str(guild_id), None)  # Remove current track
             await interaction.response.send_message("🛑 **Playback stopped and queue cleared.**")
         else:
             await interaction.response.send_message("❌ **No music is playing.**")
@@ -255,7 +343,7 @@ class Music:
 
         # Set the volume
         volume = level / 100  # Convert to a 0.0 - 1.0 scale
-        self.volumes[guild_id] = volume
+        self.volumes[str(guild_id)] = volume
 
         # Adjust volume if something is playing
         if guild_id in self.voice_clients and self.voice_clients[guild_id].is_playing():

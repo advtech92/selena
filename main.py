@@ -25,6 +25,7 @@ class Selena(discord.Client):
 
     async def setup_hook(self):
         # Sync the app commands with Discord
+        self.loop.create_task(self.music.auto_resume_playback())
         await self.tree.sync()
 
 
