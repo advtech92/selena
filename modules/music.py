@@ -1,3 +1,5 @@
+# modules/music.py
+
 import discord
 from discord import app_commands
 import yt_dlp
@@ -14,6 +16,7 @@ class Music:
         self.save_file = 'music_state.json'
         self.volumes = {}  # Store volume levels per guild
         self.default_volume = 0.5  # Default volume level (50%)
+        self.current_interactions = {}  # Store interactions per guild
 
         # Load saved state for auto-resume
         self.load_music_state()
@@ -42,6 +45,10 @@ class Music:
         async def stop(interaction: discord.Interaction):
             await self.stop(interaction)
 
+        @app_commands.command(name='leave', description='Disconnect the bot from the voice channel')
+        async def leave(interaction: discord.Interaction):
+            await self.leave(interaction)
+
         @app_commands.command(name='volume', description='Set the playback volume')
         @app_commands.describe(level='Volume level between 0 and 100')
         async def volume(interaction: discord.Interaction, level: int):
@@ -53,12 +60,16 @@ class Music:
         self.client.tree.add_command(resume)
         self.client.tree.add_command(skip)
         self.client.tree.add_command(stop)
+        self.client.tree.add_command(leave)
         self.client.tree.add_command(volume)
 
     async def play(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
 
         guild_id = interaction.guild_id
+
+        # Store the interaction object for later use
+        self.current_interactions[guild_id] = interaction
 
         # Check if the user is in a voice channel
         if interaction.user.voice is None:
@@ -120,7 +131,7 @@ class Music:
 
     async def play_next(self, guild_id):
         if guild_id not in self.music_queues or not self.music_queues[guild_id]:
-            await self.voice_clients[guild_id].disconnect()
+            # Do not disconnect here
             return
 
         url = self.music_queues[guild_id].pop(0)
@@ -160,16 +171,32 @@ class Music:
             if thumbnail:
                 embed.set_thumbnail(url=thumbnail)
 
-            channel = self.voice_clients[guild_id].channel
-            text_channel = channel.guild.system_channel or channel.guild.text_channels[0]
-            await text_channel.send(embed=embed)
+            # Use the stored interaction to send the message
+            interaction = self.current_interactions.get(guild_id)
+            if interaction:
+                try:
+                    await interaction.followup.send(embed=embed)
+                except discord.HTTPException as e:
+                    print(f"Failed to send message: {e}")
+                finally:
+                    # Remove the interaction to prevent reuse
+                    self.current_interactions.pop(guild_id, None)
+            else:
+                # Fallback to a default text channel
+                channel = self.voice_clients[guild_id].channel
+                text_channel = channel.guild.system_channel or channel.guild.text_channels[0]
+                try:
+                    await text_channel.send(embed=embed)
+                except discord.HTTPException as e:
+                    print(f"Failed to send message: {e}")
 
             # Save state for auto-resume
             self.save_music_state()
 
         except Exception as e:
             print(f"Error during playback: {e}")
-            await self.voice_clients[guild_id].disconnect()
+            if guild_id in self.voice_clients and self.voice_clients[guild_id].is_connected():
+                await self.voice_clients[guild_id].disconnect()
 
     def after_song(self, error, guild_id):
         if error:
@@ -206,10 +233,17 @@ class Music:
         if guild_id in self.voice_clients:
             self.voice_clients[guild_id].stop()
             self.music_queues[guild_id] = []
-            await self.voice_clients[guild_id].disconnect()
             await interaction.response.send_message("🛑 **Playback stopped and queue cleared.**")
         else:
             await interaction.response.send_message("❌ **No music is playing.**")
+
+    async def leave(self, interaction: discord.Interaction):
+        guild_id = interaction.guild_id
+        if guild_id in self.voice_clients and self.voice_clients[guild_id].is_connected():
+            await self.voice_clients[guild_id].disconnect()
+            await interaction.response.send_message("👋 **Disconnected from the voice channel.**")
+        else:
+            await interaction.response.send_message("❌ **I am not connected to a voice channel.**")
 
     async def set_volume(self, interaction: discord.Interaction, level: int):
         guild_id = interaction.guild_id
