@@ -1,52 +1,35 @@
-import logging
-
 import discord
+from discord.ext import commands
+import asyncio
+import os
+from dotenv import load_dotenv
 
-import config
+# Load environment variables
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+# Import the Music module
+from modules.music import Music
+
+intents = discord.Intents.default()
+intents.message_content = True  # Required for accessing message content
 
 
 class Selena(discord.Client):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, intents):
+        super().__init__(intents=intents)
         self.tree = discord.app_commands.CommandTree(self)
 
+        # Initialize modules
+        self.music = Music(self)
+
     async def setup_hook(self):
-        guild = discord.Object(id=config.DISCORD_GUILD_ID)
-        await self.load_extensions()
-        self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
-
-    async def load_extension(self, name):
-        module = __import__(name, fromlist=["setup"])
-        await module.setup(self)
-
-    async def load_extensions(self):
-        # Mandatory modules that cannot be disabled
-        mandatory_modules = [
-            "modules.admin.logger_module",
-            "modules.admin.policy_module",
-        ]
-
-        # Load mandatory modules
-        for extension in mandatory_modules:
-            await self.load_extension(extension)
-
-        # Load enabled modules from configuration
-        for extension in config.ENABLED_MODULES:
-            await self.load_extension(extension)
-
-    async def on_ready(self):
-        print(f"Logged in as {self.user} (ID: {self.user.id})")
-        print("------")
+        # Sync the app commands with Discord
+        self.loop.create_task(self.music.auto_resume_playback())
+        await self.tree.sync()
 
 
-if __name__ == "__main__":
-    # Enable message content intent
-    intents = discord.Intents.default()
-    intents.message_content = True
+client = Selena(intents=intents)
 
-    client = Selena(intents=intents)
-    client.run(config.DISCORD_TOKEN)
+# Run the bot
+client.run(TOKEN)
